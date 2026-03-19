@@ -1,0 +1,31 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "ezchat"
+version = "0.1.0"
+description = "P2P end-to-end encrypted terminal chat with AI integration"
+requires-python = ">=3.11"
+dependencies = [
+    "cryptography",
+    "aiohttp",
+    "aiortc",
+]
+
+[project.optional-dependencies]
+ai = ["anthropic", "openai"]
+sounds = ["pygame"]
+server = []   # ezchat_server uses only core deps
+dev = ["pytest", "pytest-asyncio"]
+
+[project.scripts]
+ezchat        = "ezchat.__main__:main"
+ezchat-server = "ezchat_server.__main__:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/ezchat", "src/ezchat_server"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths    = ["tests"]

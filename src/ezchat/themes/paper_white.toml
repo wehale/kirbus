@@ -1,0 +1,26 @@
+[meta]
+name        = "Paper White"
+description = "White background, dark text — teletype feel"
+
+[colors]
+background   = "white"
+foreground   = "black"
+accent       = "blue"
+timestamp_fg = "dark_gray"
+ai_fg        = "blue"
+error_fg     = "red"
+system_fg    = "dark_gray"
+online_fg    = "green"
+offline_fg   = "dark_gray"
+agent_fg     = "blue"
+input_fg     = "black"
+input_bg     = "white"
+status_fg    = "white"
+status_bg    = "black"
+panel_fg     = "black"
+panel_bg     = "white"
+border_fg    = "dark_gray"
+
+[border]
+style       = "ascii"
+title_align = "left"

@@ -1,0 +1,26 @@
+[meta]
+name        = "Amber Terminal"
+description = "Amber on black — IBM 3179 style"
+
+[colors]
+background   = "black"
+foreground   = "bright_yellow"
+accent       = "yellow"
+timestamp_fg = "yellow"
+ai_fg        = "bright_white"
+error_fg     = "red"
+system_fg    = "yellow"
+online_fg    = "bright_yellow"
+offline_fg   = "yellow"
+agent_fg     = "bright_white"
+input_fg     = "bright_yellow"
+input_bg     = "black"
+status_fg    = "black"
+status_bg    = "yellow"
+panel_fg     = "yellow"
+panel_bg     = "black"
+border_fg    = "yellow"
+
+[border]
+style       = "single"
+title_align = "left"

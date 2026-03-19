@@ -1,0 +1,26 @@
+[meta]
+name        = "C64"
+description = "Commodore 64 — blue background, light blue text"
+
+[colors]
+background   = "blue"
+foreground   = "bright_cyan"
+accent       = "white"
+timestamp_fg = "cyan"
+ai_fg        = "bright_white"
+error_fg     = "bright_red"
+system_fg    = "cyan"
+online_fg    = "bright_cyan"
+offline_fg   = "cyan"
+agent_fg     = "bright_white"
+input_fg     = "bright_cyan"
+input_bg     = "blue"
+status_fg    = "blue"
+status_bg    = "bright_cyan"
+panel_fg     = "cyan"
+panel_bg     = "blue"
+border_fg    = "bright_cyan"
+
+[border]
+style       = "double"
+title_align = "center"

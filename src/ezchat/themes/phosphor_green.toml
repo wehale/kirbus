@@ -1,0 +1,26 @@
+[meta]
+name        = "Phosphor Green"
+description = "Classic green-on-black CRT terminal"
+
+[colors]
+background   = "black"
+foreground   = "bright_green"
+accent       = "green"
+timestamp_fg = "green"
+ai_fg        = "cyan"
+error_fg     = "red"
+system_fg    = "green"
+online_fg    = "bright_green"
+offline_fg   = "green"
+agent_fg     = "cyan"
+input_fg     = "bright_green"
+input_bg     = "black"
+status_fg    = "black"
+status_bg    = "green"
+panel_fg     = "green"
+panel_bg     = "black"
+border_fg    = "green"
+
+[border]
+style       = "single"
+title_align = "left"

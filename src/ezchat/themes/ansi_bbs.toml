@@ -1,0 +1,26 @@
+[meta]
+name        = "ANSI BBS"
+description = "Bold ANSI colors — BBS era"
+
+[colors]
+background   = "black"
+foreground   = "white"
+accent       = "bright_cyan"
+timestamp_fg = "dark_gray"
+ai_fg        = "bright_cyan"
+error_fg     = "bright_red"
+system_fg    = "bright_yellow"
+online_fg    = "bright_green"
+offline_fg   = "dark_gray"
+agent_fg     = "bright_yellow"
+input_fg     = "bright_white"
+input_bg     = "black"
+status_fg    = "bright_white"
+status_bg    = "bright_blue"
+panel_fg     = "bright_cyan"
+panel_bg     = "black"
+border_fg    = "bright_cyan"
+
+[border]
+style       = "double"
+title_align = "center"
