@@ -24,8 +24,9 @@ A peer-to-peer, end-to-end encrypted terminal chat platform with AI integration,
 16. [Private / Self-Hosted Deployment](#private--self-hosted-deployment)
 17. [Latency Testing & Benchmarking](#latency-testing--benchmarking)
 18. [Test Mode](#test-mode)
-19. [Data Flow](#data-flow)
-20. [Module Structure](#module-structure)
+19. [State Persistence](#state-persistence)
+20. [Data Flow](#data-flow)
+21. [Module Structure](#module-structure)
 21. [Open Questions](#open-questions)
 
 ---
@@ -1644,6 +1645,117 @@ ezchat/
 
 ---
 
+## State Persistence
+
+All client state lives under `~/.ezchat/`. Files are human-readable and AI-accessible. SQLite is explicitly avoided — everything is plain text or TOML.
+
+### Directory Layout
+
+```
+~/.ezchat/
+  identity.json          ← Ed25519 identity keypair (created on first run)
+  config.toml            ← theme, server URL, and other settings
+  channels.toml          ← channel registry: name → members
+  peers.toml             ← known peers: handle → Ed25519 pubkey, last_seen, ip_hint
+  command_history.txt    ← shell-style ↑/↓ command history, one entry per line
+  history/
+    scratch.log          ← ✦ scratch pad (local only)
+    @alice.log           ← DM conversation with alice
+    #general.log         ← channel #general
+```
+
+### Message Log Format
+
+Each line is a signed, human-readable record:
+
+```
+[2026-03-19 14:23:01] alice: hey there  sig:a3Kf8bC1dE5fG7hI9jK...
+[2026-03-19 14:23:05] you: hi!  sig:Z9yX8wV7uT6sR5qP4oN3mL...
+```
+
+- **Append-only** — lines are never rewritten or deleted; a log is a permanent record.
+- **AI-readable** — `cat`, `grep`, or any LLM can parse the file without tooling.
+- **Signature covers** `"{YYYY-MM-DD HH:MM:SS}|{sender}|{text}"` encoded as UTF-8, signed with the sender's Ed25519 identity private key.
+
+### Why Ed25519 Signatures on Log Entries
+
+In-transit integrity is already guaranteed by the handshake (each side proves their Ed25519 identity) and the AES-256-GCM session (authentication tags on every message). But once a message is decrypted and written to disk as plain text, anyone with filesystem access could alter it and make it appear that someone said something they did not.
+
+Per-message Ed25519 signatures extend the cryptographic guarantee to the log:
+
+- **Your outgoing messages** — signed with your Ed25519 private key before being written and before being sent. Anyone with your public key can verify you authored them.
+- **Incoming messages** — the sender signs `ts|sender|text` with their private key and includes the signature in the wire envelope. The recipient verifies it using the sender's public key (exchanged at handshake and stored in `peers.toml`) before writing to disk.
+- **Forgery requires the sender's private key** — not just filesystem access.
+
+Unverifiable entries (old clients without sig support, or detected tampering) are written with `sig:UNSIGNED` or `sig:UNVERIFIED` so they are distinguishable but not silently dropped.
+
+### Wire Format Extension
+
+Post-handshake message envelopes gain two fields:
+
+```json
+{
+  "type": "msg",
+  "ts":     "2026-03-19 14:23:01",
+  "text":   "hey there",
+  "channel": "",
+  "ed_sig": "<base64url Ed25519 signature of ts|sender|text>"
+}
+```
+
+### `channels.toml`
+
+```toml
+[channels.general]
+members = ["alice", "bob"]
+created = "2026-03-19"
+
+[channels.devops]
+members = ["alice"]
+created = "2026-03-19"
+```
+
+### `peers.toml`
+
+```toml
+[peers.alice]
+ed25519_pub = "<base64 raw bytes>"
+last_seen   = "2026-03-19T14:23:01"
+ip_hint     = "192.168.1.5"
+```
+
+`ed25519_pub` is the peer's long-term identity key as exchanged in the handshake. It is used to verify that peer's log signatures and is the ground truth for their identity.
+
+### Load Strategy (startup)
+
+1. Restore channels from `channels.toml` → populate the channels map.
+2. Restore peers from `peers.toml` → populate the peer list (all marked offline initially; live presence is determined by the network layer).
+3. Restore command history from `command_history.txt` → populate the ↑/↓ buffer.
+4. For each known conversation (scratch + channels + peers), read the last 500 lines of the log → reconstruct in-memory message history. Older lines remain on disk and are accessible to any tool that can read a file.
+
+### Write Strategy
+
+| What | When | How |
+|---|---|---|
+| Outgoing messages | Immediately on send | Append to log |
+| Incoming messages | Immediately on verified receive | Append to log |
+| Scratch pad messages | Immediately on submit | Append to log |
+| Channels | On any create/join/invite/leave | Rewrite `channels.toml` |
+| Peers | On first connect to a peer | Upsert in `peers.toml` |
+| Command history | On exit | Rewrite `command_history.txt` (last 1 000 entries) |
+
+### Log Verification
+
+```bash
+ezchat --verify-log @alice     # verify DM log with alice
+ezchat --verify-log "#general" # verify channel log
+ezchat --verify-log scratch    # verify scratch pad
+```
+
+Loads the relevant pubkeys from `peers.toml` and `identity.json`, re-derives each signature payload, and reports any lines where the signature does not match. A tampered line is immediately detectable because altering any character invalidates the Ed25519 signature.
+
+---
+
 ## Data Flow
 
 ### Startup
@@ -1826,7 +1938,7 @@ Required: `cryptography`, `aiortc`, `aiohttp`. All others are optional and only 
 
 3. ~~**Private deployment / server setup:**~~ Resolved — `ezchat-server` command ships in the same package; single-command server and client setup; AI runs via local Ollama. See [ezchat-server](#ezchat-server) and [Private / Self-Hosted Deployment](#private--self-hosted-deployment).
 
-4. **Message history persistence:** Should chat logs be stored locally (encrypted at rest)? If so, where and in what format? Should the optional message anchor chain be the only durable record?
+4. ~~**Message history persistence:**~~ Resolved — append-only plain-text logs in `~/.ezchat/history/`, one file per conversation. Each line is signed with the sender's Ed25519 key so log entries cannot be forged without the sender's private key. Peer pubkeys stored in `peers.toml` for offline verification. See [State Persistence](#state-persistence).
 
 5. **Multi-provider AI routing:** Should users be able to configure multiple LLM providers and switch between them mid-session with `/ai-provider <name>`?
 

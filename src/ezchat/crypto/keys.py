@@ -25,7 +25,9 @@ from cryptography.hazmat.primitives.serialization import (
     PublicFormat,
 )
 
-_IDENTITY_PATH = Path.home() / ".ezchat" / "identity.json"
+from ezchat.home import get_home
+
+_IDENTITY_PATH = get_home() / "identity.json"
 
 
 # ---------------------------------------------------------------------------

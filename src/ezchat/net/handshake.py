@@ -42,10 +42,10 @@ async def do_handshake(
     reader:   asyncio.StreamReader,
     writer:   asyncio.StreamWriter,
     identity: Identity,
-) -> tuple[SessionKey, str]:
+) -> tuple[SessionKey, str, bytes]:
     """Perform the ezchat handshake.
 
-    Returns (session_key, peer_handle).
+    Returns (session_key, peer_handle, peer_ed25519_pub_bytes).
     Raises ValueError on verification failure.
     """
     ephemeral = generate_ephemeral()
@@ -94,4 +94,4 @@ async def do_handshake(
     if not peer_ready.get("ok"):
         raise ValueError("Peer READY confirmation failed")
 
-    return session, peer_handle
+    return session, peer_handle, peer_ed_pub_bytes

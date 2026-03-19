@@ -3,6 +3,42 @@
 import argparse
 
 
+def _cmd_verify_log(args) -> None:  # noqa: ANN001
+    """Verify Ed25519 signatures in a conversation log."""
+    from ezchat.crypto.keys import load_or_create_identity
+    from ezchat.store import verify_log, load_peers, get_pubkeys, conv_path
+
+    conv = args.verify_log
+    # Normalise common shorthands
+    if conv == "scratch":
+        conv = "\x00scratch"
+
+    handle   = getattr(args, "handle", None) or "you"
+    identity = load_or_create_identity(handle)
+    pubkeys  = get_pubkeys(load_peers())
+    pubkeys[identity.handle] = identity.public_key   # add self for scratch log
+
+    results = verify_log(conv, pubkeys)
+    path    = conv_path(conv)
+
+    if not results:
+        print(f"No log found at {path}")
+        return
+
+    ok_count   = sum(1 for _, ok, _, _ in results if ok)
+    fail_count = len(results) - ok_count
+
+    print(f"Log: {path}")
+    print(f"  {ok_count}/{len(results)} signatures valid", end="")
+    if fail_count:
+        print(f"  ({fail_count} invalid/unsigned):")
+        for lineno, ok, _sender, raw in results:
+            if not ok:
+                print(f"  line {lineno:>4}: {raw}")
+    else:
+        print("  ✓ all good")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         prog="ezchat",
@@ -48,9 +84,18 @@ def main() -> None:
     # --- bench options ---
     parser.add_argument("--target", metavar="HANDLE_OR_ADDR", help="Benchmark target peer")
 
+    # --- state ---
+    parser.add_argument(
+        "--verify-log",
+        metavar="CONV",
+        help="Verify Ed25519 signatures in a conversation log (e.g. @alice, '#general', scratch)",
+    )
+
     args = parser.parse_args()
 
-    if args.test:
+    if args.verify_log:
+        _cmd_verify_log(args)
+    elif args.test:
         from ezchat.ui.app import run_test_mode
         run_test_mode(args)
     elif args.bench:
