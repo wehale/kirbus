@@ -287,6 +287,10 @@ def _curses_main(stdscr: curses.window, args) -> None:
     from ezchat.crypto.keys import load_or_create_identity
     identity = load_or_create_identity(handle)
 
+    # Apply config defaults for server URL if not provided on CLI
+    if not getattr(args, "server", None) and ui_cfg.server:
+        args.server = ui_cfg.server
+
     ui   = UI(stdscr, theme, handle=handle, identity=identity)
     stop = threading.Event()
     if getattr(args, "connect", None) or getattr(args, "listen", None):

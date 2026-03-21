@@ -73,9 +73,12 @@ def main() -> None:
     parser.add_argument("--theme",  metavar="NAME", help="UI theme to load on startup")
 
     # --- connection ---
-    parser.add_argument("--connect", metavar="HANDLE_OR_ADDR", help="Connect to a peer")
-    parser.add_argument("--listen",  metavar="PORT", type=int,  help="Listen for incoming connections")
-    parser.add_argument("--server",  metavar="URL",             help="ezchat-server URL")
+    parser.add_argument("--connect", metavar="@HANDLE_OR_HOST:PORT",
+                        help="Connect to a peer by @handle (requires --server) or host:port")
+    parser.add_argument("--listen",  metavar="PORT", type=int,
+                        help="Listen for incoming connections on PORT")
+    parser.add_argument("--server",  metavar="URL",
+                        help="ezchat-server URL (e.g. http://my-server.com:8000)")
 
     # --- test mode options ---
     parser.add_argument("--echo-delay",  metavar="MS",   type=int, default=0, help="Simulated echo latency (ms)")

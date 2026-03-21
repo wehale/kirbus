@@ -27,6 +27,7 @@ class AIConfig:
 class UIConfig:
     theme:  str = "phosphor_green"
     handle: str = ""
+    server: str = ""   # ezchat-server URL, e.g. "http://my-server.com:8000"
 
 
 def _load_toml(path: Path) -> dict:
@@ -55,4 +56,5 @@ def load_ui_config(path: Path | None = None) -> UIConfig:
     return UIConfig(
         theme  = ui.get("theme",  "phosphor_green"),
         handle = ui.get("handle", ""),
+        server = ui.get("server", ""),
     )
