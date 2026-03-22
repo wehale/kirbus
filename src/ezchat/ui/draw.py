@@ -106,9 +106,12 @@ class DrawMixin:
             for name, ch in sorted(self.channels.items()):
                 rows.append((ch.key, f"# {name}", True))
         if self.peers:
+            fps = getattr(self, "peer_fingerprints", {})
             rows.append(("\x00dm_header", "── direct ──", False))
             for handle, online in sorted(self.peers, key=lambda p: (not p[1], p[0])):
-                rows.append((handle, handle, online))
+                fp = fps.get(handle, "")
+                label = f"{handle} [{fp[:4]}]" if fp else handle
+                rows.append((handle, label, online))
         return rows
 
     def _draw_presence(self) -> None:

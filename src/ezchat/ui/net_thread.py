@@ -80,7 +80,8 @@ def net_thread(ui, args, stop: threading.Event) -> None:
         except Exception as exc:
             ui.inbox.put(("system_event", f"warning: could not save peer: {exc}"))
 
-        ui.inbox.put(("__peer_online__", conn.peer_handle))
+        fingerprint = conn.peer_ed_pub[:4].hex()  # 8 hex chars, e.g. "a3f72eb1"
+        ui.inbox.put(("__peer_online__", conn.peer_handle, fingerprint))
 
         async def _send_loop() -> None:
             loop = asyncio.get_running_loop()
