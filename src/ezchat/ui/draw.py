@@ -104,7 +104,7 @@ class DrawMixin:
                 rows.append((ch.key, f"# {name}", True))
         if self.peers:
             rows.append(("\x00dm_header", "── direct ──", False))
-            for handle, online in self.peers:
+            for handle, online in sorted(self.peers, key=lambda p: (not p[1], p[0])):
                 rows.append((handle, handle, online))
         return rows
 

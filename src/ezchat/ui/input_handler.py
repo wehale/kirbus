@@ -25,6 +25,7 @@ class InputMixin:
 /theme <name>                switch theme
 /themes                      list available themes
 /ai <prompt>                 ask the AI; response sent to current conversation
+/ai-peer                     forward the last peer message to the AI
 /clear                       clear chat history
 /quit  (or /q)               exit ezchat
 /channel create <name>       create a new channel
@@ -78,6 +79,28 @@ PgUp / PgDn        scroll chat"""
         elif cmd == "/clear":
             self.messages.clear()
             self.scroll = 0
+
+        elif cmd == "/ai-peer":
+            channel    = self.view if self.view != "top" else ""
+            convo      = f"#{channel}" if channel else self.active_peer
+            peer_name  = self.active_peer if not channel else None
+            # Find the last message from someone other than us in this conversation
+            last = next(
+                (m for m in reversed(self.messages)
+                 if m.peer == (convo if convo else "")
+                 and m.sender != self.handle
+                 and m.kind == "chat"
+                 and not m.sender.endswith("→ ai")
+                 and m.sender != "ai"),
+                None,
+            )
+            if not last:
+                self._error("No peer message found in current conversation")
+                return
+            prompt = f"[{last.sender}]: {last.text}"
+            # Reuse /ai logic
+            self._handle_command(f"/ai {prompt}")
+            return
 
         elif cmd == "/ai":
             if not arg:
