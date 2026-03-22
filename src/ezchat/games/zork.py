@@ -34,6 +34,10 @@ class _ZorkBase(BaseGame):
     _filenames: tuple[str, ...] = ()
     _title: str = ""
 
+    @classmethod
+    def available(cls) -> bool:
+        return _find_file(*cls._filenames) is not None
+
     def __init__(self) -> None:
         self._env    = None
         self._over   = False

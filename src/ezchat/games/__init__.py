@@ -32,6 +32,11 @@ class BaseGame(ABC):
     min_players: int = 1
     max_players: int = 2
 
+    @classmethod
+    def available(cls) -> bool:
+        """Return False to hide this game from the list (e.g. missing game file)."""
+        return True
+
     @abstractmethod
     def start(self, players: list[str]) -> str:
         """Called once when the session is created.
@@ -91,7 +96,7 @@ def get_game_class(name: str) -> type[BaseGame] | None:
 def list_games() -> list[type[BaseGame]]:
     if not _registry:
         _load_plugins()
-    return sorted(_registry.values(), key=lambda c: c.name)
+    return sorted((c for c in _registry.values() if c.available()), key=lambda c: c.name)
 
 
 # ---------------------------------------------------------------------------
