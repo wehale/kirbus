@@ -271,8 +271,7 @@ class UI(DrawMixin, InputMixin):
                 elif sender == "__registry_servers__":
                     # text is the server list from the registry
                     self.registry_servers = item[2] if len(item) > 2 else []
-                    if self.registry_servers:
-                        self._system(f"Found {len(self.registry_servers)} server(s) in registry")
+                    # Silently update the server list in the sidebar
 
                 elif sender == "__server_connected__":
                     self.connected_server = text
