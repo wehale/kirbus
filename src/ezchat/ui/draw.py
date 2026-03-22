@@ -301,7 +301,8 @@ class DrawMixin:
         to_label       = f"→ {active_display}" if self.active_peer else "no peer selected"
         total_unread   = sum(self.unread.values())
         unread_label   = f"  │  ● {total_unread}" if total_unread else ""
-        bar = f"  {self.handle}  │  {to_label}  │  online: {peer_count}{unread_label}  "
+        su_tag = " [su]" if getattr(self, "is_su", False) else ""
+        bar = f"  {self.handle}{su_tag}  │  {to_label}  │  online: {peer_count}{unread_label}  "
         self._safe_addstr(self.sw, 0, 0, bar.ljust(w)[:w], self.theme.status)
         self.sw.noutrefresh()
 
