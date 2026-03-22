@@ -430,11 +430,19 @@ def net_thread(ui, args, stop: threading.Event) -> None:
 
         # Wait for user to select a server via outbox
         loop = asyncio.get_running_loop()
+        _REGISTRY_POLL = 15  # seconds between auto-refreshes
+        import time as _time
+        _last_fetch = _time.monotonic()
+
         while not stop.is_set():
             try:
                 item = await loop.run_in_executor(
                     None, lambda: ui.outbox.get(timeout=0.5))
             except _queue.Empty:
+                # Auto-refresh server list periodically
+                if _time.monotonic() - _last_fetch >= _REGISTRY_POLL:
+                    await _fetch_and_show()
+                    _last_fetch = _time.monotonic()
                 continue
 
             if not isinstance(item, tuple) or len(item) < 2:
