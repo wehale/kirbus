@@ -14,10 +14,11 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-ai = ["anthropic", "openai"]
+ai     = ["anthropic", "openai"]
 sounds = ["pygame"]
+games  = ["jericho", "python-chess"]
 server = []   # ezchat_server uses only core deps
-dev = ["pytest", "pytest-asyncio"]
+dev    = ["pytest", "pytest-asyncio"]
 
 [project.scripts]
 ezchat        = "ezchat.__main__:main"
