@@ -71,10 +71,20 @@ async def handle_register(request: web.Request) -> web.Response:
     except (KeyError, ValueError):
         return web.json_response({"error": "bad request"}, status=400)
 
+    # Verify the signature is valid for the submitted pubkey
     if not _verify_sig(pubkey, sig, handle, pubkey, endpoint, ts):
         return web.json_response({"error": "invalid signature"}, status=403)
 
     _purge_expired()
+
+    # If this handle is already claimed by a different key, reject the attempt.
+    # The legitimate owner can always re-register because their sig verifies
+    # against their own (matching) pubkey above.
+    existing = _registry.get(handle)
+    if existing and existing["pubkey"] != pubkey:
+        _log.warning("handle conflict: %s tried to re-register as %r", pubkey[:12], handle)
+        return web.json_response({"error": "handle already claimed"}, status=409)
+
     ttl = request.app["ttl"]
     _registry[handle] = {
         "pubkey":   pubkey,
