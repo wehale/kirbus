@@ -196,7 +196,10 @@ class DrawMixin:
                 blocked = key in getattr(self, "blocked_peers", set())
                 kst     = getattr(self, "peer_key_status", {})
                 status  = kst.get(key, "known")
-                if blocked:
+                has_unread = key in self.unread
+                if has_unread:
+                    attr = self.theme.error | curses.A_BOLD
+                elif blocked:
                     attr = self.theme.offline
                 elif status == "changed":
                     attr = self.theme.error
@@ -205,20 +208,13 @@ class DrawMixin:
                 else:
                     attr = self.theme.online if online else self.theme.offline
 
-            badge    = f" [{self.unread[key]}]" if key in self.unread else ""
             is_server = key.startswith("\x00srv:")
             dot      = "" if is_scratch or is_back or is_server else ("●" if online else "○")
             prefix   = f"{dot} " if dot else ""
-            row_text = f"{prefix}{label}{badge}"[:inner_w]
+            row_text = f"{prefix}{label}"[:inner_w]
             if is_cursor:
                 row_text = row_text.ljust(inner_w)
             self._safe_addstr(self.pw, row, 2, row_text, attr)
-
-            if badge and not is_cursor:
-                badge_x = 2 + len(f"{prefix}{label}")
-                self._safe_addstr(self.pw, row, badge_x,
-                                  badge[:inner_w - badge_x + 2],
-                                  self.theme.error | curses.A_BOLD)
 
         self.pw.noutrefresh()
 
@@ -281,7 +277,7 @@ class DrawMixin:
             chat_title = "select a chat server with Tab"
         else:
             chat_title = "chat — select a peer with Tab"
-        chat_border = self.theme.error if total_unread else self.theme.border
+        chat_border = self.theme.border
         self._draw_border(self.cw, chat_title, attr=chat_border)
         inner_h = self.chat_h - 2
         inner_w = self.chat_w - 4
