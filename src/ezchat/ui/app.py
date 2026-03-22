@@ -293,7 +293,7 @@ def _curses_main(stdscr: curses.window, args) -> None:
 
     ui   = UI(stdscr, theme, handle=handle, identity=identity)
     stop = threading.Event()
-    if getattr(args, "connect", None) or getattr(args, "listen", None):
+    if getattr(args, "connect", None) or getattr(args, "listen", None) or getattr(args, "server", None):
         net = threading.Thread(target=net_thread, args=(ui, args, stop), daemon=True)
         net.start()
 
