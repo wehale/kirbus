@@ -8,3 +8,5 @@ venv/
 *.egg
 .pytest_cache/
 .mypy_cache/
+server.toml
+registry.toml

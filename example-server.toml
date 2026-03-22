@@ -1,0 +1,19 @@
+[server]
+host       = "0.0.0.0"
+api_port   = 8000
+relay_port = 9001
+ttl        = 60
+log_level  = "info"
+
+[registry]
+url         = "http://127.0.0.1:8080"
+name        = "my-server"
+description = "A public ezchat server"
+secret      = "CHANGE_ME"
+access      = "open"
+# password  = ""          # only needed if access = "password"
+
+[auth]
+mode = "open"
+# mode     = "password"
+# password = "CHANGE_ME"
