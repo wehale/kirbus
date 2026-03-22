@@ -65,8 +65,9 @@ class UI(DrawMixin, InputMixin):
         self.history_idx:   int       = -1
         self.history_draft: str       = ""
 
-        self.peers:    list[tuple[str, bool]] = []
-        self.channels: dict[str, Channel]     = {}
+        self.peers:       list[tuple[str, bool]] = []
+        self.channels:    dict[str, Channel]     = {}
+        self.agent_peers: set[str]               = set()
 
         self.focus:       str = "input"
         self.peer_cursor: int = 0
@@ -225,11 +226,12 @@ class UI(DrawMixin, InputMixin):
                         self.outbox.put((ai_peer, f"\x00ai:a\x00{text}",      ai_channel))
 
                 elif sender == "__peer_online__":
-                    if not any(h == text for h, _ in self.peers):
-                        self.peers.append((text, True))
-                    else:
-                        self.peers = [(h, True if h == text else on)
-                                      for h, on in self.peers]
+                    if text not in self.agent_peers:
+                        if not any(h == text for h, _ in self.peers):
+                            self.peers.append((text, True))
+                        else:
+                            self.peers = [(h, True if h == text else on)
+                                          for h, on in self.peers]
 
                 elif sender == "__peer_offline__":
                     self.peers = [(h, False if h == text else on)
@@ -248,6 +250,7 @@ class UI(DrawMixin, InputMixin):
                             self.scroll = 0
 
                 elif sender == "__peer_is_agent__":
+                    self.agent_peers.add(text)
                     self.peers = [(h, on) for h, on in self.peers if h != text]
 
                 elif sender == "__channel_join__":
