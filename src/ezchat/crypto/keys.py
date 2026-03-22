@@ -27,7 +27,8 @@ from cryptography.hazmat.primitives.serialization import (
 
 from ezchat.home import get_home
 
-_IDENTITY_PATH = get_home() / "identity.json"
+def _identity_path() -> Path:
+    return get_home() / "identity.json"
 
 
 # ---------------------------------------------------------------------------
@@ -83,12 +84,14 @@ class Identity:
             public_key  = priv.public_key(),
         )
 
-    def save(self, path: Path = _IDENTITY_PATH) -> None:
+    def save(self, path: Path | None = None) -> None:
+        path = path or _identity_path()
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps(self.to_dict(), indent=2))
 
     @classmethod
-    def load(cls, path: Path = _IDENTITY_PATH) -> "Identity":
+    def load(cls, path: Path | None = None) -> "Identity":
+        path = path or _identity_path()
         return cls.from_dict(json.loads(path.read_text()))
 
 
@@ -97,8 +100,9 @@ def generate_identity(handle: str) -> Identity:
     return Identity(handle=handle, private_key=priv, public_key=priv.public_key())
 
 
-def load_or_create_identity(handle: str, path: Path = _IDENTITY_PATH) -> Identity:
+def load_or_create_identity(handle: str, path: Path | None = None) -> Identity:
     """Load identity from disk, creating and saving a new one if absent."""
+    path = path or _identity_path()
     if path.exists():
         identity = Identity.load(path)
         # Update handle if it changed on the command line

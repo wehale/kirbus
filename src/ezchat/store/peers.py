@@ -19,7 +19,8 @@ from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
 
 from ezchat.home import get_home
 
-_PEERS_PATH = get_home() / "peers.toml"
+def _peers_path() -> Path:
+    return get_home() / "peers.toml"
 
 
 @dataclass
@@ -41,10 +42,10 @@ def _b64_to_pub(s: str) -> Ed25519PublicKey:
 
 def load_peers() -> dict[str, PeerRecord]:
     """Load peers.toml; returns {} if not found or unparseable."""
-    if not _PEERS_PATH.exists():
+    if not _peers_path().exists():
         return {}
     try:
-        data = tomllib.loads(_PEERS_PATH.read_text(encoding="utf-8"))
+        data = tomllib.loads(_peers_path().read_text(encoding="utf-8"))
     except Exception:
         return {}
     result = {}
@@ -59,7 +60,7 @@ def load_peers() -> dict[str, PeerRecord]:
 
 
 def _write_peers(peers: dict[str, PeerRecord]) -> None:
-    _PEERS_PATH.parent.mkdir(parents=True, exist_ok=True)
+    _peers_path().parent.mkdir(parents=True, exist_ok=True)
     lines = ["# ezchat known peers\n\n"]
     for handle in sorted(peers):
         rec = peers[handle]
@@ -71,7 +72,7 @@ def _write_peers(peers: dict[str, PeerRecord]) -> None:
         if rec.ip_hint:
             lines.append(f'ip_hint = "{rec.ip_hint}"\n')
         lines.append("\n")
-    _PEERS_PATH.write_text("".join(lines), encoding="utf-8")
+    _peers_path().write_text("".join(lines), encoding="utf-8")
 
 
 def upsert_peer(

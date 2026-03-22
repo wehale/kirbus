@@ -96,6 +96,11 @@ def main() -> None:
 
     args = parser.parse_args()
 
+    # Derive data directory from handle (e.g. ~/.ezchat-alice/)
+    if getattr(args, "handle", None):
+        from ezchat.home import set_handle
+        set_handle(args.handle)
+
     if args.verify_log:
         _cmd_verify_log(args)
     elif args.test:

@@ -28,7 +28,8 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import (
 
 from ezchat.home import get_home
 
-_HISTORY_DIR = get_home() / "history"
+def _history_dir() -> Path:
+    return get_home() / "history"
 
 # Per-path write locks so UI thread (scratch) and net thread (peers) don't race.
 _locks: dict[str, threading.Lock] = {}
@@ -58,7 +59,7 @@ def conv_path(conv_key: str) -> Path:
         name = "scratch"
     else:
         name = conv_key.replace("/", "_").replace("\\", "_").replace("\x00", "_")
-    return _HISTORY_DIR / f"{name}.log"
+    return _history_dir() / f"{name}.log"
 
 
 def now_ts() -> str:
@@ -115,7 +116,7 @@ def append_message(
     sig: str,
 ) -> None:
     """Append a signed message line to the conversation log. Thread-safe."""
-    _HISTORY_DIR.mkdir(parents=True, exist_ok=True)
+    _history_dir().mkdir(parents=True, exist_ok=True)
     path = conv_path(conv_key)
     line = f"[{ts}] {sender}: {text}  sig:{sig}\n"
     lock = _get_lock(path)

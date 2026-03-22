@@ -315,6 +315,8 @@ def _curses_main(stdscr: curses.window, args) -> None:
         theme = set_theme("phosphor_green")
 
     handle = getattr(args, "handle", None) or ui_cfg.handle or "you"
+    from ezchat.home import set_handle
+    set_handle(handle)
     from ezchat.crypto.keys import load_or_create_identity
     identity = load_or_create_identity(handle)
 

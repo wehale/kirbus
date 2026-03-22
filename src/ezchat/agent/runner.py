@@ -12,7 +12,9 @@ def run_builtin_echo(args) -> None:
 
     logging.basicConfig(level=logging.INFO, format="%(message)s")
 
+    from ezchat.home import set_handle
     handle   = getattr(args, "handle", None) or "echo-bot"
+    set_handle(handle)
     port     = getattr(args, "listen",  None) or 9000
     identity = load_or_create_identity(handle)
 
@@ -35,8 +37,10 @@ def run_agent(args) -> None:
         format="%(asctime)s  %(levelname)-7s  %(name)s  %(message)s",
     )
 
+    from ezchat.home import set_handle
     agent_name = getattr(args, "agent", None) or ""
     handle     = getattr(args, "handle", None) or agent_name or "agent"
+    set_handle(handle)
     server     = getattr(args, "server", None) or load_ui_config().server
 
     if not server:
