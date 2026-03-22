@@ -342,7 +342,10 @@ PgUp / PgDn        scroll chat"""
                 channel = self.view if self.view != "top" else ""
                 self._chat(self.handle, text, channel=channel)
                 if self.active_peer and self.active_peer != SCRATCH_PEER:
-                    self.outbox.put((self.active_peer, text, channel))
+                    if not any(h == self.active_peer and on for h, on in self.peers):
+                        self._error(f"{self.active_peer} is offline")
+                    else:
+                        self.outbox.put((self.active_peer, text, channel))
 
         elif ch in (curses.KEY_BACKSPACE, 127, 8):
             if self.cursor > 0:

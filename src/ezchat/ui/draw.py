@@ -125,6 +125,8 @@ class DrawMixin:
             kst = getattr(self, "peer_key_status", {})
             rows.append(("\x00dm_header", "── direct ──", False))
             for handle, online in sorted(self.peers, key=lambda p: (not p[1], p[0])):
+                if not online:
+                    continue
                 fp      = fps.get(handle, "")
                 status  = kst.get(handle, "known")
                 blocked = handle in getattr(self, "blocked_peers", set())
