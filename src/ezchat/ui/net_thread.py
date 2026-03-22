@@ -16,6 +16,7 @@ Direct (no --server):
 from __future__ import annotations
 
 import asyncio
+import queue as _queue
 import threading
 
 from ezchat.crypto.keys import load_or_create_identity
@@ -33,12 +34,45 @@ def net_thread(ui, args, stop: threading.Event) -> None:
     server   = getattr(args, "server", None) or ""
 
     # Track which handles we're already connected to (or connecting to)
-    # to avoid duplicate connections
     _connected: set[str] = set()
     _connected_lock = asyncio.Lock()
 
+    # Per-connection send queues — keyed by peer handle.
+    # A single dispatcher task reads from ui.outbox and routes items here
+    # so that each connection only processes messages meant for it.
+    _peer_queues: dict[str, _queue.Queue] = {}
+
+    async def _dispatch_outbox() -> None:
+        """Read from shared outbox, route each item to the right peer queue(s)."""
+        loop = asyncio.get_running_loop()
+        while not stop.is_set():
+            try:
+                item = await loop.run_in_executor(
+                    None, lambda: ui.outbox.get(timeout=0.1)
+                )
+                recipient = item[0]   # peer handle or "#channel"
+                channel   = item[2] if len(item) > 2 else ""
+                if channel:
+                    # Fan-out to every channel member that has an open connection
+                    ch = ui.channels.get(channel)
+                    if ch:
+                        for member in list(ch.members):
+                            q = _peer_queues.get(member)
+                            if q:
+                                q.put(item)
+                else:
+                    # Direct message — route only to the intended peer
+                    q = _peer_queues.get(recipient)
+                    if q:
+                        q.put(item)
+            except Exception:
+                pass
+
     async def _handle_conn(conn) -> None:
         """Pump one established connection until it closes."""
+        peer_q: _queue.Queue = _queue.Queue()
+        _peer_queues[conn.peer_handle] = peer_q
+
         ui.inbox.put(("system_event", f"connected: {conn.peer_handle}"))
         try:
             from ezchat.store import upsert_peer
@@ -53,14 +87,10 @@ def net_thread(ui, args, stop: threading.Event) -> None:
             while not stop.is_set():
                 try:
                     item    = await loop.run_in_executor(
-                        None, lambda: ui.outbox.get(timeout=0.1)
+                        None, lambda: peer_q.get(timeout=0.1)
                     )
                     text    = item[1]
                     channel = item[2] if len(item) > 2 else ""
-                    if channel:
-                        ch = ui.channels.get(channel)
-                        if not ch or conn.peer_handle not in ch.members:
-                            continue
                     await conn.send(text, channel=channel)
                 except Exception:
                     pass
@@ -77,7 +107,7 @@ def net_thread(ui, args, stop: threading.Event) -> None:
                     ch_name = text.split("\x00")[2]
                     ui.inbox.put(("system_event",
                                   f"invited to #{ch_name} by {conn.peer_handle}"))
-                    ui.inbox.put(("__channel_join__", ch_name))
+                    ui.inbox.put(("__channel_join__", ch_name, conn.peer_handle))
                     ui.inbox.put(("__peer_is_agent__", conn.peer_handle))
                 else:
                     ts     = frame.get("ts", "")
@@ -91,6 +121,7 @@ def net_thread(ui, args, stop: threading.Event) -> None:
         finally:
             send_task.cancel()
             await conn.close()
+            _peer_queues.pop(conn.peer_handle, None)
             async with _connected_lock:
                 _connected.discard(conn.peer_handle)
             ui.inbox.put(("system_event", f"disconnected: {conn.peer_handle}"))
@@ -341,6 +372,7 @@ def net_thread(ui, args, stop: threading.Event) -> None:
     # Entry
     # ------------------------------------------------------------------
     async def _run() -> None:
+        dispatch_task = asyncio.create_task(_dispatch_outbox(), name="outbox-dispatch")
         try:
             if server:
                 listen_port = getattr(args, "listen", None)
@@ -349,5 +381,7 @@ def net_thread(ui, args, stop: threading.Event) -> None:
                 await _run_direct()
         except Exception as exc:
             ui.inbox.put(("system_event", f"network error: {exc}"))
+        finally:
+            dispatch_task.cancel()
 
     asyncio.run(_run())

@@ -239,8 +239,14 @@ class UI(DrawMixin, InputMixin):
                     self.peers = [(h, on) for h, on in self.peers if h != text]
 
                 elif sender == "__channel_join__":
+                    inviter = item[2] if len(item) > 2 else None
                     if text not in self.channels:
-                        self.channels[text] = Channel(name=text, members=[self.handle])
+                        members = [self.handle]
+                        if inviter and inviter not in members:
+                            members.append(inviter)
+                        self.channels[text] = Channel(name=text, members=members)
+                    elif inviter and inviter not in self.channels[text].members:
+                        self.channels[text].members.append(inviter)
 
                 else:
                     channel = item[2] if len(item) > 2 else ""
