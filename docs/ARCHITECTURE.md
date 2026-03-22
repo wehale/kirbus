@@ -932,113 +932,130 @@ ezchat/
 
 ## Games
 
-Users can challenge their chat peer to a retro multiplayer game without leaving ezchat. Games render in the terminal using curses and inherit the active theme — every game looks native to whatever retro skin the user has chosen. Chat continues to receive messages in the background; returning from a game drops the user straight back into their conversation.
+Games are delivered through a single always-on `@games` agent running on the server alongside `ezchat-server`. Users interact with it through normal chat messages — no new commands, no UI changes, no separate processes per game. The agent manages all concurrent sessions internally.
 
-### Theme Integration
-
-Games pull colours directly from the active theme at render time — no per-game colour configuration needed. A chess board in Phosphor Green looks different from the same board in C64 blue or Amber Terminal, and both look intentional.
-
-```
-Phosphor Green theme:          Amber Terminal theme:
-
-  ♜ ♞ ♝ ♛ ♚ ♝ ♞ ♜             ♜ ♞ ♝ ♛ ♚ ♝ ♞ ♜
-  ♟ ♟ ♟ ♟ ♟ ♟ ♟ ♟             ♟ ♟ ♟ ♟ ♟ ♟ ♟ ♟
-  · · · · · · · ·             · · · · · · · ·
-  · · · · · · · ·             · · · · · · · ·
-  · · · · · · · ·             · · · · · · · ·
-  · · · · · · · ·             · · · · · · · ·
-  ♙ ♙ ♙ ♙ ♙ ♙ ♙ ♙             ♙ ♙ ♙ ♙ ♙ ♙ ♙ ♙
-  ♖ ♘ ♗ ♕ ♔ ♗ ♘ ♖             ♖ ♘ ♗ ♕ ♔ ♗ ♘ ♖
-
-  rendered in bright_green       rendered in amber
-  on black background            on black background
+```bash
+# Server setup — two processes, always running
+ezchat-server                                              # rendezvous + relay
+ezchat --server http://SERVER:8000 --handle games --agent games  # games agent
 ```
 
-The theme's `foreground`, `accent`, `background`, and `status_bg` colours map to game elements: board squares, active pieces, empty cells, and the status line showing whose turn it is.
+`@games` appears in every connected peer's presence panel like any other peer. A user starts a game by messaging it directly:
 
-### Game Framework
+```
+you:    chess @joebeans          # challenge joebeans to chess
+games:  Chess started! wehale plays white. Your move.
+        ♜ ♞ ♝ ♛ ♚ ♝ ♞ ♜
+        ♟ ♟ ♟ ♟ ♟ ♟ ♟ ♟
+        ...
 
-All games share a common base class. Each game is a self-contained plugin in `ezchat/games/`.
+you:    zork                     # start a single-player Zork session
+games:  ZORK I: The Great Underground Empire
+        You are standing in an open field west of a white house...
+
+you:    go north
+games:  North of House. You are facing the north side of a white house...
+```
+
+### Plugin Architecture
+
+Each game is a self-contained class in `ezchat/games/`. The games agent is a dispatcher that never needs to change when a new game is added — drop a new file in the directory and it is automatically available.
 
 ```python
-class Game(ABC):
-    def __init__(self, theme: Theme, peer_handle: str): ...
+class BaseGame:
+    name:       str           # command name ("chess", "zork", "hangman")
+    description: str          # shown in /games list
+    min_players: int = 1      # 1 = single-player supported
+    max_players: int = 2      # max concurrent players in one session
 
-    async def on_start(self, i_go_first: bool) -> None: ...
-    async def render(self, window) -> None: ...          # draw to curses window
-    async def handle_input(self, key: int) -> None: ...  # local keypress
-    async def handle_peer(self, event: dict) -> None: ... # incoming game event
-    async def on_end(self, winner: str | None) -> None: ...
+    def start(self, players: list[str]) -> str:
+        """Called when a session starts. Returns opening message."""
+        ...
+
+    def on_message(self, sender: str, text: str) -> list[tuple[str, str]]:
+        """Handle a message from a player.
+        Returns list of (recipient_handle, message) to send back.
+        Recipients can be any subset of players or all of them.
+        """
+        ...
+
+    @property
+    def is_over(self) -> bool:
+        """Return True when the game has ended."""
+        ...
 ```
 
-When a game is active it takes over the full terminal. The chat window is suspended but continues receiving messages silently. `ESC` or `/quit-game` ends the game (counts as a concede) and returns to chat with a summary line in the message history:
+The agent maintains a session table keyed by participants:
 
-```
-[GAME] Chess vs @bob — @bob won  (14 moves, 8 minutes)
+```python
+# Single-player session key: "wehale:zork"
+# Multiplayer session key:   frozenset({"wehale", "joebeans"}) + game name
 ```
 
 ### Built-in Games
 
-| Game | Type | Description |
-|---|---|---|
-| **Pong** | Real-time | Two paddles, one ball; paddles rendered as `█` blocks in theme accent colour |
-| **Chess** | Turn-based | Full rules; Unicode chess pieces; board squares in theme foreground/background |
-| **Battleship** | Turn-based | Classic 10×10 grids; ships rendered in theme accent, hits in error colour |
-| **Connect Four** | Turn-based | 7×6 grid; each player's pieces in distinct theme colours |
-| **Hangman** | Turn-based | Word guessing; gallows drawn in ASCII; letters in theme foreground |
-| **Tic-tac-toe** | Turn-based | 3×3 grid; simplest game, useful for testing the framework |
+| Game | Players | Engine | Description |
+|---|---|---|---|
+| **Zork** | 1 | [Jericho](https://github.com/microsoft/jericho) (wraps frotz) | Classic text adventure; `pip install jericho` required |
+| **Chess** | 1–2 | [python-chess](https://github.com/niklasf/python-chess) + Stockfish (optional) | vs computer or vs peer; Stockfish for AI opponent |
+| **Tic-tac-toe** | 2 | pure Python | 3×3 grid; good test case for the framework |
+| **Hangman** | 2 | pure Python | One player picks word, other guesses |
+| **Battleship** | 2 | pure Python | Classic 10×10 grid |
+| **Connect Four** | 2 | pure Python | 7×6 grid |
 
-### Network Protocol
+### Optional Dependencies
 
-Game events use three new envelope types that slot into the existing message framing:
+Games declare their own optional dependencies. If a dependency is missing, the game gracefully declines:
 
-```json
-{ "v": 1, "type": "game_invite",  "ts": "...", "body": "{ \"game\": \"chess\" }" }
-{ "v": 1, "type": "game_event",   "ts": "...", "body": "{ \"move\": \"e2e4\" }" }
-{ "v": 1, "type": "game_over",    "ts": "...", "body": "{ \"winner\": \"@alice\" }" }
+```
+you:    zork
+games:  Zork requires the 'jericho' package. Install with: pip install jericho
 ```
 
-All payloads are encrypted with the session key. Turn-based games send one `game_event` per move. Real-time games (Pong) send state updates at up to 30 fps over the existing P2P channel — fast enough for smooth play on a LAN or low-latency connection.
+```
+you:    chess
+games:  Chess started (computer plays random moves — install stockfish for a real opponent)
+```
 
-Accept/decline is handled by the existing UI prompt pattern — the same `[Y]es / [N]o` used for file transfers.
+### Session Protocol
 
-### Commands
+Users interact entirely through plain text messages to `@games`. The agent interprets the first word as either a game name or a move:
 
-| Command | Behavior |
+| Message | Meaning |
 |---|---|
-| `/game <name>` | Challenge current peer (e.g. `/game chess`) |
-| `/game list` | Show all available games |
-| `/quit-game` | Concede and return to chat |
+| `chess` | Start single-player chess vs computer |
+| `chess @joebeans` | Challenge joebeans to chess |
+| `zork` | Start a Zork session |
+| `go north` / `e2e4` / `A3` | Move in current session |
+| `games` or `help` | List available games |
+| `quit` | End current session |
 
-The peer sees:
+The agent tracks which game each sender is currently in, so subsequent messages are routed to the right session automatically.
 
-```
-[GAME] @alice is challenging you to Chess  [Y]es / [N]o
-```
+### Adding a New Game
 
-### Sound Integration
+1. Create `src/ezchat/games/mygame.py` with a class inheriting `BaseGame`
+2. Set `name`, `description`, `min_players`, `max_players`
+3. Implement `start()`, `on_message()`, and `is_over`
+4. The games agent discovers it automatically on next start
 
-Games trigger the existing sound system. A move confirmation click, a win chime, and a loss tone are added as built-in sounds and configurable per-event in `config.toml`:
-
-```toml
-[sounds]
-game_move = "key_click"
-game_win  = "bbs_ping"
-game_loss = ""
-```
+No changes to the agent, runner, or any other file required.
 
 ### Module
 
 ```
 ezchat/
 └── games/
-    ├── base.py          # Game ABC, game loop, network event dispatch
-    ├── pong.py          # real-time Pong
-    ├── chess.py         # Chess (full rules)
-    ├── battleship.py    # Battleship
-    ├── connect_four.py  # Connect Four
-    ├── hangman.py       # Hangman
-    └── tictactoe.py     # Tic-tac-toe
+    ├── __init__.py      # BaseGame, session router, game registry (auto-discovers plugins)
+    ├── zork.py          # wraps Jericho Z-machine interpreter
+    ├── chess.py         # wraps python-chess; Stockfish optional AI opponent
+    ├── tictactoe.py     # pure Python
+    ├── hangman.py       # pure Python
+    ├── battleship.py    # pure Python
+    └── connect4.py      # pure Python
+
+ezchat/agent/
+    └── games_agent.py   # dispatcher — routes messages to game sessions, never changes
 ```
 
 ---
@@ -1054,10 +1071,26 @@ This means any device that can run Python can participate as a headless agent: a
 ### Headless Agent Mode
 
 ```bash
-ezchat --agent --script handler.py
+ezchat --agent handler.py       # run a custom agent script
+ezchat --agent games            # run the built-in games agent
 ```
 
-Starts ezchat without the curses UI. The network stack, encryption, and registry chain all function identically to a normal client. When a message arrives, `handler.py` is called with the sender handle and the raw message string. If the handler returns a string, it is sent back as a reply. The content and structure of those strings is entirely the handler's concern.
+Starts ezchat without the curses UI. The network stack, encryption, and identity system all function identically to a normal client. When a message arrives, the agent handler is called with the sender handle and the raw message string. If the handler returns a string, it is sent back as a reply.
+
+**Built-in agents** (no script file needed):
+
+| Agent | Command | Description |
+|---|---|---|
+| `games` | `ezchat --agent games` | Multi-game session manager; see [Games](#games) |
+| `echo` | `ezchat --echo-server` | Reflects every message back; used for testing |
+
+**Custom agents** load a user-supplied Python script:
+
+```bash
+ezchat --agent /path/to/handler.py --server http://SERVER:8000 --handle my-bot
+```
+
+Starts ezchat without the curses UI. When a message arrives, `handler.py` is called with the sender handle and the raw message string. If the handler returns a string, it is sent back as a reply. The content and structure of those strings is entirely the handler's concern.
 
 ### Authentication
 
