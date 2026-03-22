@@ -430,7 +430,7 @@ def net_thread(ui, args, stop: threading.Event) -> None:
 
         # Wait for user to select a server via outbox
         loop = asyncio.get_running_loop()
-        _REGISTRY_POLL = 15  # seconds between auto-refreshes
+        _REGISTRY_POLL = 5  # seconds between auto-refreshes
         import time as _time
         _last_fetch = _time.monotonic()
 
