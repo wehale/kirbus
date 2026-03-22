@@ -120,12 +120,12 @@ async def run_games_agent(identity, server: str) -> None:
             if opponent:
                 players.append(opponent)
             opening = router.start(game_name, players)
-            # Send opening to all players
+            # Send opening to all players via #games
             for p in players:
                 conn = connections.get(p)
                 if conn:
                     try:
-                        await conn.send(opening)
+                        await conn.send(opening, channel=_CHANNEL)
                     except Exception:
                         pass
             return

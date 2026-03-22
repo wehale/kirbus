@@ -94,6 +94,8 @@ class DrawMixin:
             members = ch.members if ch else []
             rows = [(BACK_ENTRY, "../", True)]
             for handle in members:
+                if handle == self.handle:
+                    continue
                 online = any(h == handle and on for h, on in self.peers)
                 rows.append((handle, handle, online))
             return rows
