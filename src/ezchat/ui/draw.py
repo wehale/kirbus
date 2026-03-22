@@ -103,7 +103,7 @@ class DrawMixin:
         # Show server list from registry if not connected to a server yet
         registry_servers = getattr(self, "registry_servers", [])
         connected_server = getattr(self, "connected_server", "")
-        if registry_servers and not connected_server and not self.peers:
+        if registry_servers and not connected_server:
             rows: list[tuple[str, str, bool]] = []
             rows.append(("\x00srv_header", "── servers ──", False))
             for srv in registry_servers:
