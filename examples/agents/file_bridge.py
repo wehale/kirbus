@@ -1,14 +1,14 @@
 """
-ezchat agent archetype: File Bridge
+kirbus agent archetype: File Bridge
 -------------------------------------
-Lets trusted peers request files from a shared directory using the ezchat
+Lets trusted peers request files from a shared directory using the kirbus
 file transfer protocol. Turns a headless machine into an accessible file
 server — no shared drive, no VPN, no open ports required.
 
 Run:
-    ezchat --agent --script file_bridge.py --server https://chat.internal:8443
+    kirbus --agent --script file_bridge.py --server https://chat.internal:8443
 
-Config (~/.ezchat/config.toml):
+Config (~/.kirbus/config.toml):
     [agent]
     allowed_handles = ["@yourhandle", "@teammate"]
     description     = "File bridge — shared asset access"
@@ -59,10 +59,10 @@ def on_message(sender: str, message: str) -> str | None:
         if not target.exists():
             return f"Not found: {filename!r} — try 'list' to see available files"
 
-        # ezchat will call this handler's return value as a reply message
+        # kirbus will call this handler's return value as a reply message
         # and separately initiate a file transfer to the requesting peer.
-        # The send_file() call below is provided by the ezchat agent runtime.
-        send_file(str(target))   # noqa: F821 — injected by ezchat agent runner
+        # The send_file() call below is provided by the kirbus agent runtime.
+        send_file(str(target))   # noqa: F821 — injected by kirbus agent runner
         return f"Sending {filename} ({target.stat().st_size // 1024} KB)..."
 
     return "Commands: 'list'  |  'send <filename>'"

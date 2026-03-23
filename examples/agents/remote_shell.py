@@ -1,18 +1,18 @@
 """
-ezchat agent archetype: Remote Shell
+kirbus agent archetype: Remote Shell
 -------------------------------------
 Forwards messages to a local bash process and streams output back.
-Turns the ezchat chat window into a secure remote terminal.
+Turns the kirbus chat window into a secure remote terminal.
 
 Equivalent to SSH or Raspberry Pi Connect, but:
-  - E2E encrypted through the ezchat session key
-  - No open ports required — NAT traversal handled by ezchat ICE
+  - E2E encrypted through the kirbus session key
+  - No open ports required — NAT traversal handled by kirbus ICE
   - Gated by allowed_handles — only listed users can connect
 
 Run:
-    ezchat --agent --script remote_shell.py --server https://chat.internal:8443
+    kirbus --agent --script remote_shell.py --server https://chat.internal:8443
 
-Config (~/.ezchat/config.toml):
+Config (~/.kirbus/config.toml):
     [agent]
     allowed_handles = ["@yourhandle"]   # IMPORTANT: keep this list tight
     description     = "Remote shell"

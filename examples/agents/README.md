@@ -1,10 +1,10 @@
-# ezchat Agent Examples
+# kirbus Agent Examples
 
 These examples demonstrate the four agent archetypes described in `docs/ARCHITECTURE.md`.
 Each is a standalone `handler.py` you can copy, adapt, and run with:
 
 ```bash
-ezchat --agent --script <handler.py> --server https://your-server:8443
+kirbus --agent --script <handler.py> --server https://your-server:8443
 ```
 
 ---
@@ -23,14 +23,14 @@ ezchat --agent --script <handler.py> --server https://your-server:8443
 ## Authentication
 
 Every example checks `sender` before acting. The `sender` parameter is
-**cryptographically verified** by the ezchat Ed25519 handshake — it is not
+**cryptographically verified** by the kirbus Ed25519 handshake — it is not
 a claim the peer makes, it is proven identity.
 
 Set `allowed_handles` in your agent config to gate connections at the
 network level before your handler is ever called:
 
 ```toml
-# ~/.ezchat/config.toml
+# ~/.kirbus/config.toml
 [agent]
 allowed_handles = ["@yourhandle"]
 ```
@@ -56,4 +56,4 @@ async def on_start(send) -> None:
 ```
 
 Your handler is a plain Python file. Import whatever you need.
-ezchat provides the transport and identity; your handler provides the logic.
+kirbus provides the transport and identity; your handler provides the logic.

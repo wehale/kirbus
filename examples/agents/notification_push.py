@@ -1,20 +1,20 @@
 """
-ezchat agent archetype: Notification / Push
+kirbus agent archetype: Notification / Push
 --------------------------------------------
 Watches an external system in the background and pushes messages into chat
 when something happens. The agent initiates messages rather than waiting
 for them.
 
 Run:
-    ezchat --agent --script notification_push.py --server https://chat.internal:8443
+    kirbus --agent --script notification_push.py --server https://chat.internal:8443
 
-Config (~/.ezchat/config.toml):
+Config (~/.kirbus/config.toml):
     [agent]
     allowed_handles = ["@yourhandle"]
     description     = "Notification/push example agent"
 
 How it works:
-    ezchat calls on_start(send) once after the peer connects, passing a
+    kirbus calls on_start(send) once after the peer connects, passing a
     send(message) coroutine. Your watch loop calls send() whenever it has
     something to report. on_message handles any replies from the peer.
 """

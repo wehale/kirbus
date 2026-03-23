@@ -1,7 +1,7 @@
 """Resolve the kirbus data directory.
 
 Priority order:
-1. EZCHAT_HOME environment variable (full override)
+1. KIRBUS_HOME environment variable (full override)
 2. Handle-based: ~/.kirbus-{handle}/  (when set via set_handle())
 3. Default: ~/.kirbus/
 """
@@ -15,7 +15,7 @@ def set_handle(handle: str) -> None:
     """Set the handle used to derive the data directory.
 
     Call this early in startup, before anything imports get_home().
-    Has no effect when EZCHAT_HOME is set.
+    Has no effect when KIRBUS_HOME is set.
     """
     global _handle
     _handle = handle
@@ -23,7 +23,7 @@ def set_handle(handle: str) -> None:
 
 def get_home() -> Path:
     """Return the kirbus data directory, expanding ~ if needed."""
-    env = os.environ.get("EZCHAT_HOME")
+    env = os.environ.get("KIRBUS_HOME")
     if env:
         return Path(env).expanduser()
     if _handle:

@@ -177,10 +177,10 @@ kirbus --handle work-me
 kirbus --handle personal-me
 ```
 
-Override with `EZCHAT_HOME`:
+Override with `KIRBUS_HOME`:
 
 ```bash
-EZCHAT_HOME=~/.kirbus-custom kirbus --handle custom
+KIRBUS_HOME=~/.kirbus-custom kirbus --handle custom
 ```
 
 ---

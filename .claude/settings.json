@@ -9,23 +9,12 @@
       "WebFetch(domain:blog.zarfhome.com)",
       "WebFetch(domain:raw.githubusercontent.com)",
       "Read(//home/wehale/**)",
-      "Bash(python -c \"from ezchat.home import set_handle, get_home; set_handle\\(''alice''\\); print\\(get_home\\(\\)\\)\")",
-      "Bash(python -c \"from ezchat.home import get_home; print\\(get_home\\(\\)\\)\")",
       "Bash(python -c \":*)",
-      "Bash(python -c \"import ezchat.store.log; import ezchat.store.channels; import ezchat.store.history; import ezchat.store.peers; import ezchat.agent.runner; print\\(''all imports ok''\\)\")",
-      "Bash(python -c \"import ezchat.ui.input_handler; import ezchat.ui.app; print\\(''ok''\\)\")",
-      "Bash(python -c \"import ezchat.ui.input_handler; print\\(''ok''\\)\")",
-      "Bash(python3 -c \"from ezchat_registry.api import make_app; from ezchat_registry.directory import Directory; from ezchat_server.config import load_server_config; from ezchat_server.heartbeat import heartbeat_loop; from ezchat_server.allowlist import Allowlist; from ezchat.net.registry_client import fetch_servers, DEFAULT_REGISTRY; print\\(''All imports OK''\\)\")",
+      "Bash(python3 -c \":*)",
       "Bash(curl -s http://100.0.197.245:8000/peers)",
       "Bash(python3 -m json.tool)",
       "Bash(curl -s http://100.0.197.245:8080/servers)",
-      "Bash(grep -rn \"conv_key\\\\|conv_path\\\\|_load\\\\|_populate\" /home/wehale/ezchat/src/ezchat/ui/*.py)",
-      "Bash(find /home/wehale/ezchat -name *.log -o -name command_history.txt)",
-      "Bash(ls -la ~/.ezchat*/history/)",
-      "Bash(head -5 ~/.ezchat*/history/bob.log)",
-      "Bash(head -20 ~/.ezchat*/history/scratch.log)",
-      "Bash(aws sts:*)",
-      "Bash(find /home/wehale/ezchat -name *.png -o -name *.jpg -o -name *.gif -o -name *.webp)"
+      "Bash(aws sts:*)"
     ]
   }
 }
