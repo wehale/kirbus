@@ -1,0 +1,7 @@
+{
+  "app": "python3 app.py",
+  "context": {
+    "key_name": "ezchat-key",
+    "region": "us-east-1"
+  }
+}
