@@ -6,7 +6,18 @@ build-backend = "hatchling.build"
 name = "ezchat"
 version = "0.1.0"
 description = "P2P end-to-end encrypted terminal chat with AI integration"
+readme = "README.md"
+license = "Apache-2.0"
 requires-python = ">=3.11"
+classifiers = [
+    "Environment :: Console :: Curses",
+    "Topic :: Communications :: Chat",
+    "Programming Language :: Python :: 3",
+]
+
+[project.urls]
+Homepage = "https://github.com/wehale/ezchat"
+Repository = "https://github.com/wehale/ezchat"
 dependencies = [
     "cryptography",
     "aiohttp",
