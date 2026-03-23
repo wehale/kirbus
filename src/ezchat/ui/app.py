@@ -434,9 +434,9 @@ def _handle_encrypt_history(args) -> None:
                 encrypt_file(f)
         print("History encryption enabled.")
     else:
-        # Existing salt — prompt for passphrase
-        passphrase = getpass.getpass("History passphrase: ")
-        if not init_encryption(passphrase, get_home()):
-            print("Wrong passphrase. History will be unavailable and new messages won't be saved.")
-            print("Press Enter to continue, or Ctrl-C to quit.")
-            input()
+        # Existing salt — prompt for passphrase with retries
+        while True:
+            passphrase = getpass.getpass("History passphrase: ")
+            if init_encryption(passphrase, get_home()):
+                break
+            print("Wrong passphrase. Try again, or Ctrl-C to quit.")
