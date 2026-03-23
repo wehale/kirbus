@@ -1,5 +1,8 @@
 # kirbus
 
+[![PyPI](https://img.shields.io/pypi/v/kirbus)](https://pypi.org/project/kirbus/)
+[![CI](https://github.com/wehale/kirbus/actions/workflows/ci.yml/badge.svg)](https://github.com/wehale/kirbus/actions/workflows/ci.yml)
+
 ![kirbus screenshot](images/screenshot.png)
 
 A peer-to-peer, end-to-end encrypted terminal chat with built-in AI integration.
@@ -16,20 +19,21 @@ A peer-to-peer, end-to-end encrypted terminal chat with built-in AI integration.
 ## Quick start
 
 ```bash
+pip install kirbus
+kirbus --handle yourname
+```
+
+That's it. The client connects to the default registry at `kirbus.ai`, shows you available servers, and you pick one with Tab + Enter.
+
+Requires Python 3.11+. Or run from source with [uv](https://github.com/astral-sh/uv):
+
+```bash
 git clone https://github.com/wehale/kirbus.git
 cd kirbus
 uv run kirbus --handle yourname
 ```
 
-That's it. The client connects to the default registry at `kirbus.ai`, shows you available servers, and you pick one with Tab + Enter.
-
-Requires Python 3.11+ and [uv](https://github.com/astral-sh/uv). Or install system-wide with pip:
-
-```bash
-pip install -e .
-```
-
-After `pip install`, commands like `kirbus`, `kirbus-server`, and `kirbus-registry` are available directly. If running from the repo with `uv` instead, prefix all commands with `uv run` (e.g. `uv run kirbus`, `uv run kirbus-server`).
+After install, `kirbus`, `kirbus-server`, and `kirbus-registry` are available as commands. If running from the repo with `uv` instead, prefix with `uv run` (e.g. `uv run kirbus`).
 
 ---
 
