@@ -21,12 +21,13 @@ uv run ezchat --handle yourname
 
 That's it. The client connects to the default registry at `ezchat.kirbus.ai`, shows you available servers, and you pick one with Tab + Enter.
 
-Requires Python 3.11+ and [uv](https://github.com/astral-sh/uv). Or install with pip:
+Requires Python 3.11+ and [uv](https://github.com/astral-sh/uv). Or install system-wide with pip:
 
 ```bash
 pip install -e .
-ezchat --handle yourname
 ```
+
+After `pip install`, commands like `ezchat`, `ezchat-server`, and `ezchat-registry` are available directly. If running from the repo with `uv` instead, prefix all commands with `uv run` (e.g. `uv run ezchat`, `uv run ezchat-server`).
 
 ---
 
