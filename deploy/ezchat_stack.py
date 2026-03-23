@@ -16,7 +16,7 @@ set -euo pipefail
 
 # --- System setup ---
 apt-get update -y
-apt-get install -y git python3 python3-pip
+apt-get install -y git python3 python3-pip nginx certbot python3-certbot-nginx
 
 # --- Install uv ---
 curl -LsSf https://astral.sh/uv/install.sh | sh
@@ -30,16 +30,15 @@ cd ezchat
 # --- Create registry config ---
 cat > registry.toml << 'REGEOF'
 [registry]
-host          = "0.0.0.0"
+host          = "127.0.0.1"
 port          = 8080
 heartbeat_ttl = 180
 log_level     = "info"
 REGEOF
 
 # --- Create server config ---
-# PUBLIC_IP will be filled in by the instance on boot
 TOKEN=$(openssl rand -hex 16)
-PUBLIC_IP=$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4 || echo "0.0.0.0")
+DOMAIN="ezchat.kirbus.ai"
 
 cat > server.toml << SRVEOF
 [server]
@@ -55,11 +54,31 @@ name        = "lobby"
 description = "Public ezchat lobby"
 secret      = "$TOKEN"
 access      = "open"
-public_url  = "http://$PUBLIC_IP:8000"
+public_url  = "http://$DOMAIN:8000"
 
 [auth]
 mode = "open"
 SRVEOF
+
+# --- Nginx reverse proxy for registry (HTTPS → localhost:8080) ---
+cat > /etc/nginx/sites-available/ezchat << NGEOF
+server {
+    listen 80;
+    server_name $DOMAIN;
+
+    location / {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_set_header Host \\$host;
+        proxy_set_header X-Real-IP \\$remote_addr;
+        proxy_set_header X-Forwarded-For \\$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \\$scheme;
+    }
+}
+NGEOF
+
+ln -sf /etc/nginx/sites-available/ezchat /etc/nginx/sites-enabled/
+rm -f /etc/nginx/sites-enabled/default
+systemctl restart nginx
 
 # --- Create systemd services ---
 cat > /etc/systemd/system/ezchat-registry.service << 'SVCEOF'
@@ -100,6 +119,11 @@ systemctl enable ezchat-registry ezchat-server
 systemctl start ezchat-registry
 sleep 2
 systemctl start ezchat-server
+
+# --- TLS via certbot (runs after DNS is pointing here) ---
+# Attempt certbot — will fail silently if DNS isn't ready yet.
+# Re-run manually: certbot --nginx -d ezchat.kirbus.ai --non-interactive --agree-tos -m admin@kirbus.ai
+certbot --nginx -d $DOMAIN --non-interactive --agree-tos -m admin@kirbus.ai || true
 """
 
 
