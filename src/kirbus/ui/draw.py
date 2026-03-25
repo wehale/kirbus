@@ -3,11 +3,57 @@ from __future__ import annotations
 
 import curses
 import re
-import textwrap
 from datetime import datetime, date as _date_cls, timedelta
 from typing import TYPE_CHECKING, Optional
 
+from wcwidth import wcswidth, wcwidth as _wcwidth
+
 from kirbus.ui.models import SCRATCH_PEER, SCRATCH_LABEL, BACK_ENTRY, Message
+
+
+def _display_width(text: str) -> int:
+    """Return the number of terminal columns *text* occupies."""
+    w = wcswidth(text)
+    if w >= 0:
+        return w
+    # wcswidth returns -1 if any non-printable char is present; fall back to
+    # summing per-character widths, treating non-printable as 0.
+    total = 0
+    for ch in text:
+        cw = _wcwidth(ch)
+        total += cw if cw > 0 else 0
+    return total
+
+
+def _wrap_text(text: str, width: int) -> list[str]:
+    """Word-wrap *text* respecting actual terminal display widths.
+
+    Unlike textwrap.wrap(), this accounts for wide/ambiguous Unicode
+    characters (box-drawing, CJK, etc.) that occupy >1 terminal column.
+    """
+    if width <= 0:
+        return [text]
+    words = text.split(" ")
+    lines: list[str] = []
+    current = ""
+    current_w = 0
+    for word in words:
+        ww = _display_width(word)
+        if current:
+            # +1 for the space
+            if current_w + 1 + ww <= width:
+                current += " " + word
+                current_w += 1 + ww
+            else:
+                lines.append(current)
+                current = word
+                current_w = ww
+        else:
+            current = word
+            current_w = ww
+    if current:
+        lines.append(current)
+    return lines or [text]
 
 if TYPE_CHECKING:
     pass  # avoid circular imports; runtime access is via self
@@ -55,13 +101,29 @@ class DrawMixin:
         for segment, is_url in self._split_urls(text):
             if remaining <= 0:
                 break
-            chunk = segment[:remaining]
+            # Truncate segment to fit remaining display columns.
+            chunk = segment
+            cw = _display_width(chunk)
+            if cw > remaining:
+                # Trim character by character from the end.
+                truncated = ""
+                tw = 0
+                for ch in chunk:
+                    chw = _wcwidth(ch)
+                    if chw < 0:
+                        chw = 0
+                    if tw + chw > remaining:
+                        break
+                    truncated += ch
+                    tw += chw
+                chunk = truncated
+                cw = tw
             try:
                 win.addstr(y, col, chunk, url_attr if is_url else base_attr)
             except curses.error:
                 pass
-            col       += len(chunk)
-            remaining -= len(chunk)
+            col       += cw
+            remaining -= cw
 
     def _draw_border(self, win: curses.window, title: str = "",
                      attr: Optional[int] = None) -> None:
@@ -75,11 +137,12 @@ class DrawMixin:
             self._safe_addstr(win, row, w - 1, b["v"], a)
         if title and w > 4:
             label = f" {title} "[:w - 4]
+            lw    = _display_width(label)
             align = self.theme.title_align
             if align == "center":
-                x = max(1, (w - len(label)) // 2)
+                x = max(1, (w - lw) // 2)
             elif align == "right":
-                x = max(1, w - len(label) - 1)
+                x = max(1, w - lw - 1)
             else:
                 x = 2
             self._safe_addstr(win, 0, x, label, a | curses.A_BOLD)
@@ -250,21 +313,33 @@ class DrawMixin:
             if msg.date and msg.date != last_date:
                 last_date = msg.date
                 label   = self._date_label(msg.date)
-                pad     = max(0, (inner_w - len(label) - 2) // 2)
+                label_w = _display_width(label)
+                pad     = max(0, (inner_w - label_w - 2) // 2)
                 divider = "─" * pad + f" {label} " + "─" * pad
-                lines.append((None, divider[:inner_w], self.theme.timestamp))
+                lines.append((None, divider, self.theme.timestamp))
             attr   = self._msg_attr(msg)
             prefix = f"[{msg.timestamp}] {msg.sender}: "
-            first  = True
-            for part in textwrap.wrap(prefix + msg.text, width=inner_w) or [prefix + msg.text]:
-                lines.append((msg, part if first else "  " + part, attr))
-                first = False
+            if msg.kind == "preformatted":
+                # First line gets the prefix, remaining lines are indented
+                # but never word-wrapped — preserves game boards / ASCII art.
+                indent = " " * _display_width(prefix)
+                for i, raw_line in enumerate(msg.text.split("\n")):
+                    if i == 0:
+                        lines.append((msg, prefix + raw_line, attr))
+                    else:
+                        lines.append((msg, indent + raw_line, attr))
+            else:
+                first  = True
+                for part in _wrap_text(prefix + msg.text, inner_w) or [prefix + msg.text]:
+                    lines.append((msg, part if first else "  " + part, attr))
+                    first = False
         return lines
 
     def _msg_attr(self, msg: Message) -> int:
-        if msg.kind == "system": return self.theme.system
-        if msg.kind == "error":  return self.theme.error
-        if msg.sender == self.handle: return self.theme.accent
+        if msg.kind == "system":       return self.theme.system
+        if msg.kind == "error":        return self.theme.error
+        if msg.kind == "preformatted": return self.theme.chat
+        if msg.sender == self.handle:  return self.theme.accent
         return self.theme.chat
 
     def _draw_chat(self) -> None:
@@ -289,11 +364,11 @@ class DrawMixin:
         visible = lines[start: start + inner_h]
 
         for row_offset, (_, text, attr) in enumerate(visible):
-            self._addstr_with_urls(self.cw, row_offset + 1, 2, text[:inner_w], attr, inner_w)
+            self._addstr_with_urls(self.cw, row_offset + 1, 2, text, attr, inner_w)
 
         if self.scroll > 0:
             indicator = f" ↑ {self.scroll} more "
-            self._safe_addstr(self.cw, 1, self.chat_w - len(indicator) - 2,
+            self._safe_addstr(self.cw, 1, self.chat_w - _display_width(indicator) - 2,
                               indicator, self.theme.system)
         self.cw.noutrefresh()
 

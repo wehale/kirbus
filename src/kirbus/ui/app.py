@@ -183,13 +183,23 @@ class UI(DrawMixin, InputMixin):
         ts, date = self._now()
         self.messages.append(Message(ts, "system", text, "error", date=date))
 
+    @staticmethod
+    def _detect_preformatted(text: str) -> bool:
+        """Return True if text looks like preformatted content (game boards, ASCII art)."""
+        if "\n" not in text:
+            return False
+        # Box-drawing characters are a strong signal.
+        _BOX = set("─│┼┌┐└┘├┤┬┴╔╗╚╝═║╭╮╰╯")
+        return any(ch in _BOX for ch in text)
+
     def _chat(self, sender: str, text: str, channel: str = "", convo: str = "") -> None:
         ts, date = self._now()
         if not convo:
             convo = f"#{channel}" if channel else (
                 self.active_peer if sender == self.handle else sender
             )
-        self.messages.append(Message(ts, sender, text, "chat", peer=convo, date=date))
+        kind = "preformatted" if self._detect_preformatted(text) else "chat"
+        self.messages.append(Message(ts, sender, text, kind, peer=convo, date=date))
         if sender != self.handle and convo != self.active_peer:
             self.unread[convo] = self.unread.get(convo, 0) + 1
         if sender == self.handle and convo == SCRATCH_PEER and self.identity:

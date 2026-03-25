@@ -19,6 +19,7 @@ dependencies = [
     "cryptography",
     "aiohttp",
     "aiortc",
+    "wcwidth",
 ]
 
 [project.urls]
