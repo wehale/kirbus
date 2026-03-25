@@ -330,9 +330,11 @@ class DrawMixin:
                         lines.append((msg, indent + raw_line, attr))
             else:
                 first  = True
-                for part in _wrap_text(prefix + msg.text, inner_w) or [prefix + msg.text]:
-                    lines.append((msg, part if first else "  " + part, attr))
-                    first = False
+                # Split on newlines first, then word-wrap each line.
+                for raw_line in (prefix + msg.text).split("\n"):
+                    for part in _wrap_text(raw_line, inner_w) or [raw_line]:
+                        lines.append((msg, part if first else "  " + part, attr))
+                        first = False
         return lines
 
     def _msg_attr(self, msg: Message) -> int:

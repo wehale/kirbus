@@ -28,13 +28,18 @@ def _games_list() -> str:
     games = list_games()
     if not games:
         return "No games available."
-    lines = ["games:"]
+    lines = ["Available games:"]
     for g in games:
         players = (
             "single-player" if g.max_players == 1
             else f"1–{g.max_players} players"
         )
-        lines.append(f"    {g.name} ({g.description}, {players})")
+        lines.append(f"  {g.name} — {g.description} ({players})")
+    lines.append("")
+    lines.append("How to play:")
+    lines.append("  Type a game name to start, e.g. 'zork'")
+    lines.append("  For multiplayer: 'tictactoe @opponent'")
+    lines.append("  Type 'quit' to end a game")
     return "\n".join(lines)
 
 

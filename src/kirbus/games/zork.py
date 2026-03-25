@@ -14,10 +14,11 @@ from __future__ import annotations
 from pathlib import Path
 
 from kirbus.games import BaseGame
+from kirbus.home import get_home
 
 
 def _find_file(*names: str) -> Path | None:
-    base = Path.home() / ".kirbus" / "games"
+    base = get_home() / "games"
     for name in names:
         p = base / name
         if p.exists():
