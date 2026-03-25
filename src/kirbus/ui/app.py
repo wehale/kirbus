@@ -27,7 +27,7 @@ from kirbus.ui.input_handler import InputMixin
 from kirbus.ui.models import (
     PRESENCE_W, INPUT_H, STATUS_H, MIN_COLS, MIN_ROWS,
     SCRATCH_PEER, RESERVED_CHANNELS,
-    Channel, Message, too_small,
+    Channel, Message, AgentMenu, AgentEntry, too_small,
 )
 from kirbus.ui.net_thread import net_thread
 from kirbus.ui.theme import Theme, set_theme
@@ -85,6 +85,12 @@ class UI(DrawMixin, InputMixin):
         self.registry_servers: list[dict] = []   # [{name, description, access, online_count, url}]
         self.connected_server: str = ""          # name of the server we're connected to
         self.is_su: bool = False                 # whether we have su role
+
+        # Agent menu state
+        self.agent_menu: AgentMenu | None = None       # current agent menu (if viewing one)
+        self.agent_session: str = ""                    # active session key (e.g. "zork")
+        self.agent_picking_peer: str = ""               # entry key when picking a multiplayer opponent
+        self._pending_game_invite: dict | None = None   # incoming multiplayer invite
 
         self.inbox:     queue.Queue = queue.Queue()
         self.outbox:    queue.Queue = queue.Queue()
@@ -294,6 +300,57 @@ class UI(DrawMixin, InputMixin):
                 elif sender == "__peer_is_agent__":
                     self.agent_peers.add(text)
                     self.peers = [(h, on) for h, on in self.peers if h != text]
+
+                elif sender == "__agent_menu__":
+                    import json
+                    agent_handle = text
+                    data = json.loads(item[2])
+                    entries = [
+                        AgentEntry(key=e["key"], label=e["label"],
+                                   type=e.get("type", "single"))
+                        for e in data.get("entries", [])
+                    ]
+                    menu = AgentMenu(
+                        title=data.get("title", agent_handle),
+                        entries=entries,
+                        agent=agent_handle,
+                    )
+                    self.agent_menu = menu
+                    self.agent_session = ""
+                    self.agent_picking_peer = ""
+                    self.active_peer = agent_handle
+                    self.view = "top"
+                    self.focus = "presence"
+                    self.peer_cursor = 0
+
+                elif sender == "__agent_session__":
+                    import json
+                    data = json.loads(item[2])
+                    state = data.get("state", "")
+                    if state == "started":
+                        self.agent_session = data.get("key", "")
+                        self.agent_picking_peer = ""
+                    elif state == "ended":
+                        self.agent_session = ""
+                        self.agent_picking_peer = ""
+
+                elif sender == "__game_invite__":
+                    import json
+                    agent_handle = text
+                    data = json.loads(item[2])
+                    game_name = data.get("game", "")
+                    from_peer = data.get("from", "")
+                    invite_id = data.get("invite_id", "")
+                    self._system(
+                        f"{from_peer} challenges you to {game_name}! "
+                        f"Type /accept-game to play or /decline-game to decline."
+                    )
+                    self._pending_game_invite = {
+                        "agent": agent_handle,
+                        "game": game_name,
+                        "from": from_peer,
+                        "invite_id": invite_id,
+                    }
 
                 elif sender == "__channel_join__":
                     inviter = item[2] if len(item) > 2 else None

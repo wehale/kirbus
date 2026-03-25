@@ -135,6 +135,19 @@ def net_thread(ui, args, stop: threading.Event) -> None:
                                   f"invited to #{ch_name} by {conn.peer_handle}"))
                     ui.inbox.put(("__channel_join__", ch_name, conn.peer_handle))
                     ui.inbox.put(("__peer_is_agent__", conn.peer_handle))
+                elif text.startswith("\x00menu\x00"):
+                    import json as _json
+                    payload = text.split("\x00", 2)[2]
+                    ui.inbox.put(("__agent_menu__", conn.peer_handle, payload))
+                    ui.inbox.put(("__peer_is_agent__", conn.peer_handle))
+                elif text.startswith("\x00session\x00"):
+                    import json as _json
+                    payload = text.split("\x00", 2)[2]
+                    ui.inbox.put(("__agent_session__", conn.peer_handle, payload))
+                elif text.startswith("\x00invite_game\x00"):
+                    # Multiplayer game invitation from agent
+                    payload = text.split("\x00", 2)[2]
+                    ui.inbox.put(("__game_invite__", conn.peer_handle, payload))
                 else:
                     ts     = frame.get("ts", "")
                     ed_sig = frame.get("ed_sig", "")

@@ -42,9 +42,25 @@ class Message:
     timestamp: str
     sender:    str
     text:      str
-    kind:      str = "chat"   # "chat" | "system" | "error"
+    kind:      str = "chat"   # "chat" | "system" | "error" | "preformatted"
     peer:      str = ""       # which conversation this belongs to; "" = system/global
     date:      str = ""       # "YYYY-MM-DD" — used for date dividers
+
+
+@dataclass
+class AgentEntry:
+    """A single entry in an agent's menu."""
+    key:   str              # unique identifier sent in \x00select\x00
+    label: str              # display text in the sidebar
+    type:  str = "single"   # "single" (start immediately) | "multi" (pick opponent)
+
+
+@dataclass
+class AgentMenu:
+    """Menu exposed by an agent peer."""
+    title:   str                          # sidebar panel title
+    entries: list[AgentEntry] = field(default_factory=list)
+    agent:   str = ""                     # handle of the agent peer
 
 
 # ---------------------------------------------------------------------------

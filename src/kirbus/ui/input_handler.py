@@ -203,6 +203,30 @@ PgUp / PgDn        scroll chat"""
 
             threading.Thread(target=_ai_call, daemon=True).start()
 
+        elif cmd == "/accept-game":
+            invite = getattr(self, "_pending_game_invite", None)
+            if not invite:
+                self._error("No pending game invite.")
+                return
+            self.outbox.put((
+                invite["agent"],
+                f"\x00accept_invite\x00{invite['invite_id']}"
+            ))
+            self._system(f"Accepted {invite['game']} with {invite['from']}!")
+            self._pending_game_invite = None
+
+        elif cmd == "/decline-game":
+            invite = getattr(self, "_pending_game_invite", None)
+            if not invite:
+                self._error("No pending game invite.")
+                return
+            self.outbox.put((
+                invite["agent"],
+                f"\x00decline_invite\x00{invite['invite_id']}"
+            ))
+            self._system("Game invite declined.")
+            self._pending_game_invite = None
+
         else:
             self._error(f"Unknown command: {cmd}  (type /help for commands)")
 
@@ -310,9 +334,10 @@ PgUp / PgDn        scroll chat"""
 
         if self.focus == "presence":
             rows       = self._presence_rows()
+            _HDR = ("\x00ch_", "\x00dm_", "\x00srv_",
+                    "\x00menu_", "\x00peer_", "\x00pick_")
             selectable = [i for i, (k, _, _) in enumerate(rows)
-                          if not k.startswith("\x00ch_") and not k.startswith("\x00dm_")
-                          and not k.startswith("\x00srv_")]
+                          if not any(k.startswith(p) for p in _HDR)]
             if ch == curses.KEY_UP:
                 idx = selectable.index(self.peer_cursor) if self.peer_cursor in selectable else 0
                 self.peer_cursor = selectable[max(0, idx - 1)]
@@ -323,9 +348,45 @@ PgUp / PgDn        scroll chat"""
                 if not rows or self.peer_cursor >= len(rows):
                     return
                 key, label, _ = rows[self.peer_cursor]
-                if key == BACK_ENTRY:
+                menu = getattr(self, "agent_menu", None)
+                if key == BACK_ENTRY and menu is not None:
+                    # Navigate back within agent menu
+                    if getattr(self, "agent_session", ""):
+                        # End session → back to menu
+                        self.outbox.put((menu.agent, "\x00back\x00"))
+                        self.agent_session = ""
+                        self.peer_cursor = 0
+                    elif getattr(self, "agent_picking_peer", ""):
+                        # Cancel peer pick → back to menu
+                        self.agent_picking_peer = ""
+                        self.peer_cursor = 0
+                    else:
+                        # Exit agent menu entirely
+                        self.agent_menu = None
+                        self.active_peer = ""
+                        self.peer_cursor = 0
+                elif key == BACK_ENTRY:
                     self.view        = "top"
                     self.peer_cursor = 0
+                elif key.startswith("\x00entry:"):
+                    # Agent menu entry selected
+                    entry_key = key[7:]
+                    entry = next((e for e in menu.entries if e.key == entry_key), None)
+                    if entry and entry.type == "multi":
+                        self.agent_picking_peer = entry_key
+                        self.peer_cursor = 0
+                    elif entry:
+                        self.outbox.put((menu.agent, f"\x00select\x00{entry_key}"))
+                        self.focus = "input"
+                        curses.curs_set(1)
+                elif key.startswith("\x00pick:"):
+                    # Multiplayer opponent selected
+                    opponent = key[6:]
+                    entry_key = getattr(self, "agent_picking_peer", "")
+                    self.outbox.put((menu.agent, f"\x00select\x00{entry_key}\x00{opponent}"))
+                    self.agent_picking_peer = ""
+                    self.focus = "input"
+                    curses.curs_set(1)
                 elif key.startswith("\x00srv:"):
                     server_name = key[5:]
                     self.outbox.put(("__select_server__", server_name, ""))
@@ -362,21 +423,31 @@ PgUp / PgDn        scroll chat"""
             if text.startswith("/"):
                 self._handle_command(text)
             else:
-                channel = self.view if self.view != "top" else ""
-                self._chat(self.handle, text, channel=channel)
-                if channel and channel in self.channels:
-                    # Broadcast to all online channel members.
-                    ch = self.channels[channel]
-                    for member in ch.members:
-                        if member == self.handle:
-                            continue
-                        if any(h == member and on for h, on in self.peers):
-                            self.outbox.put((member, text, channel))
-                elif self.active_peer and self.active_peer != SCRATCH_PEER:
-                    if not any(h == self.active_peer and on for h, on in self.peers):
-                        self._error(f"{self.active_peer} is offline")
-                    else:
-                        self.outbox.put((self.active_peer, text, channel))
+                menu = getattr(self, "agent_menu", None)
+                session = getattr(self, "agent_session", "")
+                if menu is not None and session:
+                    # In an agent session — send to agent, show locally
+                    self._chat(self.handle, text, convo=menu.agent)
+                    self.outbox.put((menu.agent, text))
+                elif menu is not None:
+                    # In agent menu but no session — ignore or show error
+                    self._error("Select a game first")
+                else:
+                    channel = self.view if self.view != "top" else ""
+                    self._chat(self.handle, text, channel=channel)
+                    if channel and channel in self.channels:
+                        # Broadcast to all online channel members.
+                        ch = self.channels[channel]
+                        for member in ch.members:
+                            if member == self.handle:
+                                continue
+                            if any(h == member and on for h, on in self.peers):
+                                self.outbox.put((member, text, channel))
+                    elif self.active_peer and self.active_peer != SCRATCH_PEER:
+                        if not any(h == self.active_peer and on for h, on in self.peers):
+                            self._error(f"{self.active_peer} is offline")
+                        else:
+                            self.outbox.put((self.active_peer, text, channel))
 
         elif ch in (curses.KEY_BACKSPACE, 127, 8):
             if self.cursor > 0:

@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Optional
 
 from wcwidth import wcswidth, wcwidth as _wcwidth
 
-from kirbus.ui.models import SCRATCH_PEER, SCRATCH_LABEL, BACK_ENTRY, Message
+from kirbus.ui.models import SCRATCH_PEER, SCRATCH_LABEL, BACK_ENTRY, Message, AgentMenu
 
 
 def _display_width(text: str) -> int:
@@ -152,6 +152,10 @@ class DrawMixin:
     # ------------------------------------------------------------------
     def _presence_rows(self) -> list[tuple[str, str, bool]]:
         """Return (key, display_label, online) rows for the current view."""
+        menu: AgentMenu | None = getattr(self, "agent_menu", None)
+        if menu is not None:
+            return self._agent_presence_rows(menu)
+
         if self.view != "top":
             ch = self.channels.get(self.view)
             members = ch.members if ch else []
@@ -205,13 +209,57 @@ class DrawMixin:
                 rows.append((handle, label, online))
         return rows
 
+    def _agent_presence_rows(self, menu: AgentMenu) -> list[tuple[str, str, bool]]:
+        """Build sidebar rows for an agent menu."""
+        session = getattr(self, "agent_session", "")
+        picking = getattr(self, "agent_picking_peer", "")
+
+        if session:
+            # In an active session — just show ../
+            return [(BACK_ENTRY, "../", True)]
+
+        if picking:
+            # Picking a multiplayer opponent — show ../ and online peers
+            rows: list[tuple[str, str, bool]] = [(BACK_ENTRY, "../", True)]
+            rows.append(("\x00pick_header", "── pick opponent ──", False))
+            for handle, online in sorted(self.peers, key=lambda p: (not p[1], p[0])):
+                if online and handle != self.handle:
+                    rows.append((f"\x00pick:{handle}", handle, True))
+            return rows
+
+        # Show the menu entries + online peers
+        rows = [(BACK_ENTRY, "../", True)]
+        if menu.entries:
+            rows.append(("\x00menu_header", "── play ──", False))
+            for entry in menu.entries:
+                suffix = " ⚔" if entry.type == "multi" else ""
+                rows.append((f"\x00entry:{entry.key}", f"{entry.label}{suffix}", True))
+        # Show online peers (for multiplayer awareness)
+        online_peers = [(h, on) for h, on in self.peers
+                        if on and h != self.handle]
+        if online_peers:
+            rows.append(("\x00peer_header", "── online ──", False))
+            for handle, _ in sorted(online_peers, key=lambda p: p[0]):
+                rows.append((f"\x00agent_peer:{handle}", f"● {handle}", True))
+        return rows
+
     def _draw_presence(self) -> None:
         self.pw.erase()
         focused     = self.focus == "presence"
         border_attr = self.theme.accent if focused else self.theme.border
+        menu: AgentMenu | None = getattr(self, "agent_menu", None)
         registry_servers = getattr(self, "registry_servers", [])
         connected_server = getattr(self, "connected_server", "")
-        if self.view != "top":
+        if menu is not None:
+            session = getattr(self, "agent_session", "")
+            picking = getattr(self, "agent_picking_peer", "")
+            if session:
+                panel_title = session
+            elif picking:
+                panel_title = picking
+            else:
+                panel_title = menu.title
+        elif self.view != "top":
             panel_title = f"# {self.view}"
         elif registry_servers and not connected_server:
             panel_title = "registry"
@@ -222,9 +270,11 @@ class DrawMixin:
         inner_w = w - 4
 
         rows = self._presence_rows()
+        # Headers are not selectable — they start with known prefixes
+        _HEADER_PREFIXES = ("\x00ch_", "\x00dm_", "\x00srv_",
+                            "\x00menu_", "\x00peer_", "\x00pick_")
         selectable = [i for i, (k, _, _) in enumerate(rows)
-                      if not k.startswith("\x00ch_") and not k.startswith("\x00dm_")
-                      and not k.startswith("\x00srv_")]
+                      if not any(k.startswith(p) for p in _HEADER_PREFIXES)]
         if selectable:
             if self.peer_cursor not in selectable:
                 self.peer_cursor = selectable[0]
@@ -235,7 +285,7 @@ class DrawMixin:
             row = i + 1
             if row >= h - 1:
                 break
-            is_header  = key in ("\x00ch_header", "\x00dm_header", "\x00srv_header")
+            is_header  = any(key.startswith(p) for p in _HEADER_PREFIXES)
             is_cursor  = focused and i == self.peer_cursor and not is_header
             is_active  = key == self.active_peer
             is_back    = key == BACK_ENTRY
@@ -254,6 +304,10 @@ class DrawMixin:
             elif is_scratch:
                 attr = self.theme.accent
             elif key.startswith("\x00srv:"):
+                attr = self.theme.online
+            elif key.startswith("\x00entry:"):
+                attr = self.theme.accent
+            elif key.startswith(("\x00pick:", "\x00agent_peer:")):
                 attr = self.theme.online
             else:
                 blocked = key in getattr(self, "blocked_peers", set())
