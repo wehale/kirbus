@@ -141,11 +141,13 @@ PgUp / PgDn        scroll chat"""
             self._system("Refreshing server list...")
 
         elif cmd == "/connect":
-            name = arg.strip()
-            if not name:
-                self._error("Usage: /connect <server-name>")
+            parts = arg.strip().split(maxsplit=1)
+            if not parts:
+                self._error("Usage: /connect <server-name> [password]")
                 return
-            self.outbox.put(("__select_server__", name, ""))
+            name = parts[0]
+            password = parts[1] if len(parts) > 1 else ""
+            self.outbox.put(("__select_server__", name, password))
 
         elif cmd in ("/kick", "/ban", "/unban", "/who",
                       "/server-password", "/server-mode", "/allow"):
@@ -400,9 +402,19 @@ PgUp / PgDn        scroll chat"""
                         self.peer_cursor = 0
                 elif key.startswith("\x00srv:"):
                     server_name = key[5:]
-                    self.outbox.put(("__select_server__", server_name, ""))
-                    self.focus = "input"
-                    curses.curs_set(1)
+                    # Check if server requires a password
+                    servers = getattr(self, "registry_servers", [])
+                    srv = next((s for s in servers if s["name"] == server_name), None)
+                    if srv and srv.get("access") == "password":
+                        # Pre-fill the command so user can type the password
+                        self._set_input(f"/connect {server_name} ")
+                        self._system(f"Server '{server_name}' requires a password")
+                        self.focus = "input"
+                        curses.curs_set(1)
+                    else:
+                        self.outbox.put(("__select_server__", server_name, ""))
+                        self.focus = "input"
+                        curses.curs_set(1)
                 elif key.startswith("#"):
                     self.view        = key[1:]
                     self.active_peer = key

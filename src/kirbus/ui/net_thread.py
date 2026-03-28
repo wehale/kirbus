@@ -478,11 +478,12 @@ def net_thread(ui, args, stop: threading.Event) -> None:
                 srv_url = srv.get("url")
                 if srv.get("access") == "password" and not srv_url:
                     # Need to verify password
-                    ui.inbox.put(("system_event",
-                        f"Server '{server_name}' requires a password. Use: /connect {server_name} <password>"))
                     password = item[2] if len(item) > 2 and item[2] else ""
                     if not password:
+                        ui.inbox.put(("system_event",
+                            f"Server '{server_name}' requires a password. Use: /connect {server_name} <password>"))
                         continue
+                    ui.inbox.put(("system_event", f"Verifying password for '{server_name}'..."))
                     srv_url = await verify_server_password(registry_url, server_name, password)
                     if not srv_url:
                         ui.inbox.put(("system_event", "Invalid password"))
