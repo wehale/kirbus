@@ -407,7 +407,7 @@ class DrawMixin:
     def _msg_attr(self, msg: Message) -> int:
         if msg.kind == "system":       return self.theme.system
         if msg.kind == "error":        return self.theme.error
-        if msg.kind == "trophy":       return self.theme.accent | curses.A_BOLD | curses.A_BLINK
+        if msg.kind == "trophy":       return self.theme.accent | curses.A_BOLD | curses.A_REVERSE
         if msg.kind == "preformatted": return self.theme.chat
         if msg.sender == self.handle:  return self.theme.accent
         return self.theme.chat
