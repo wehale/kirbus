@@ -192,13 +192,16 @@ class UI(DrawMixin, InputMixin):
 
     def _show_trophy(self, text: str) -> None:
         ts, date = self._now()
+        w = max(len(text) + 6, 40)
+        bar = "=" * (w - 2)
+        pad_text = f"  {text}  ".center(w - 2)
         lines = [
             "",
-            "╔══════════════════════════════════════╗",
-            "║            🏆 UNLOCKED 🏆            ║",
-            "��══════════════════════════════════════╣",
-            f"║  {text:^36}  ��",
-            "╚══════════════════════════════════════╝",
+            f"+{bar}+",
+            f"|{'  *** UNLOCKED ***  '.center(w - 2)}|",
+            f"+{bar}+",
+            f"|{pad_text}|",
+            f"+{bar}+",
             "",
         ]
         for line in lines:
