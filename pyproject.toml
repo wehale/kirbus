@@ -29,7 +29,7 @@ Repository = "https://github.com/wehale/kirbus"
 [project.optional-dependencies]
 ai     = ["anthropic", "openai"]
 sounds = ["pygame"]
-games  = ["jericho", "python-chess"]
+games  = ["python-chess"]
 server = []   # kirbus_server uses only core deps
 dev    = ["pytest", "pytest-asyncio"]
 
