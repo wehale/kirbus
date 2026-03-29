@@ -227,14 +227,16 @@ def online_count() -> int:
 async def handle_stats(request: web.Request) -> web.Response:
     """Return server metrics."""
     _purge_expired()
-    return web.json_response({
+    resp = web.json_response({
         "total_connections": _metrics["total_connections"],
         "unique_handles": len(_metrics["unique_handles"]),
         "unique_ips": len(_metrics["unique_ips"]),
         "failed_auth": _metrics["failed_auth"],
         "currently_online": len(_registry),
-        "recent": _connection_log[-20:],  # last 20 connections
+        "recent": _connection_log[-50:],  # last 50 connections
     })
+    resp.headers["Access-Control-Allow-Origin"] = "*"
+    return resp
 
 
 async def handle_agent_menu(request: web.Request) -> web.Response:
