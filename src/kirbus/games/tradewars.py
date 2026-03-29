@@ -325,6 +325,12 @@ class TradeWarsGame(BaseGame):
         if cmd == "shipyard" or cmd == "sy":
             return self._enter_shipyard()
 
+        if cmd in ("buy", "b", "sell", "s"):
+            if self._state.sector in self._ports:
+                self._mode = "port"
+                return self._handle_port(text)
+            return "No port in this sector."
+
         # Try bare number as move
         if text.isdigit():
             return self._move_to(int(text))
