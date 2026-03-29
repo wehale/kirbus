@@ -37,6 +37,9 @@ _log = logging.getLogger(__name__)
 # handle → {pubkey_b64, endpoint, ts, sig, expires}
 _registry: dict[str, dict[str, Any]] = {}
 
+# Agent menus: handle → menu JSON (title, entries)
+_agent_menus: dict[str, dict] = {}
+
 
 def _b64d(s: str) -> bytes:
     return base64.b64decode(s)
@@ -186,12 +189,27 @@ def online_count() -> int:
     return len(_registry)
 
 
+async def handle_agent_menu(request: web.Request) -> web.Response:
+    """Register or update an agent's menu."""
+    try:
+        body = await request.json()
+        handle = body["handle"]
+        menu = body["menu"]  # {title, entries: [{key, label, type}]}
+    except (KeyError, ValueError):
+        return web.json_response({"error": "bad request"}, status=400)
+    _agent_menus[handle] = menu
+    _log.info("agent menu registered: %s (%d entries)", handle, len(menu.get("entries", [])))
+    return web.json_response({"ok": True})
+
+
 async def handle_info(request: web.Request) -> web.Response:
-    """Return server metadata (relay port, welcome message, etc.)."""
+    """Return server metadata (relay port, welcome message, agent menus)."""
     data = {"relay_port": request.app["relay_port"]}
     welcome = request.app.get("welcome", "")
     if welcome:
         data["welcome"] = welcome
+    if _agent_menus:
+        data["agent_menus"] = {h: m for h, m in _agent_menus.items()}
     return web.json_response(data)
 
 
@@ -218,4 +236,5 @@ def make_app(
     app.router.add_post("/keepalive",        handle_keepalive)
     app.router.add_get( "/myip",             handle_myip)
     app.router.add_get( "/info",             handle_info)
+    app.router.add_post("/agent-menu",       handle_agent_menu)
     return app

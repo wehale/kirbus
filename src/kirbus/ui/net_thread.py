@@ -266,13 +266,20 @@ def net_thread(ui, args, stop: threading.Event) -> None:
         rdv        = RendezvousClient(server, identity)
         relay_host = urlparse(server).hostname or "127.0.0.1"
 
-        # Fetch relay port and welcome message from server
+        # Fetch relay port, welcome message, and agent menus from server
         info = await rdv.server_info()
         relay_port = info.get("relay_port", 9001)
         _relay_port[0] = relay_port
         welcome = info.get("welcome", "")
         if welcome:
             ui.inbox.put(("system_event", welcome))
+
+        # Load agent menus immediately (no relay needed)
+        import json as _json
+        for agent_handle, menu_data in info.get("agent_menus", {}).items():
+            ui.inbox.put(("__agent_menu__", agent_handle,
+                          _json.dumps(menu_data)))
+            ui.inbox.put(("__peer_is_agent__", agent_handle))
 
         # Discover public IP and register
         pub_ip   = await rdv.my_public_ip() or "127.0.0.1"

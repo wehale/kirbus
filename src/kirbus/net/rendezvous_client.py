@@ -146,6 +146,17 @@ class RendezvousClient:
         except Exception:
             return {}
 
+    async def register_agent_menu(self, handle: str, menu: dict) -> None:
+        """Register an agent's menu with the server."""
+        loop = asyncio.get_running_loop()
+        try:
+            await loop.run_in_executor(
+                None, _post, f"{self.base}/agent-menu",
+                {"handle": handle, "menu": menu},
+            )
+        except Exception as exc:
+            _log.warning("failed to register agent menu: %s", exc)
+
     def start_keepalive(self, endpoint: str) -> None:
         """Start a background task that re-registers every 30 seconds."""
         if self._keepalive_task and not self._keepalive_task.done():

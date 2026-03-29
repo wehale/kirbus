@@ -67,6 +67,15 @@ async def run_games_agent(identity, server: str) -> None:
     await rdv.register(endpoint)
     rdv.start_keepalive(endpoint)
     _log.info("games agent registered as %s", identity.handle)
+
+    # Register menu with server so clients see it immediately
+    entries = agent.get_entries()
+    menu_data = {
+        "title": agent.get_title(),
+        "entries": [{"key": e.key, "label": e.label, "type": e.type} for e in entries],
+    }
+    await rdv.register_agent_menu(identity.handle, menu_data)
+
     print(f"games agent online as @{identity.handle}")
 
     async def _relay_loop() -> None:
