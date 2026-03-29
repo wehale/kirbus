@@ -177,8 +177,8 @@ def net_thread(ui, args, stop: threading.Event) -> None:
     # Connection helpers
     # ------------------------------------------------------------------
     async def _relay_connect(relay_host: str, relay_port: int, target: str,
-                              retries: int = 4, retry_delay: float = 1.5):
-        """Connect via relay, retrying briefly to handle the re-registration window."""
+                              retries: int = 8, retry_delay: float = 2.0):
+        """Connect via relay, retrying to handle timing with the peer's wait cycle."""
         import json as _json
         last_exc: Exception = ConnectionError("relay: no attempts made")
         for attempt in range(retries):

@@ -82,7 +82,7 @@ async def run_games_agent(identity, server: str) -> None:
                 resp = json.loads(line.decode().strip())
                 if not resp.get("ok"):
                     writer.close()
-                    await asyncio.sleep(5)
+                    await asyncio.sleep(1)
                     continue
                 conn = await accept_peer(reader, writer, identity)
                 asyncio.create_task(agent.handle_conn(conn))

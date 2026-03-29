@@ -138,7 +138,7 @@ def run_agent(args) -> None:
                     asyncio.create_task(_handle_conn(conn))
                 else:
                     writer.close()
-                    await asyncio.sleep(5)
+                    await asyncio.sleep(1)
             except asyncio.CancelledError:
                 return
             except Exception as exc:
