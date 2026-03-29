@@ -417,6 +417,9 @@ PgUp / PgDn        scroll chat"""
                         self.outbox.put(("__select_server__", server_name, ""))
                         self.focus = "input"
                         curses.curs_set(1)
+                elif key.startswith("\x00agent_peer:"):
+                    # Online peers in agent menu — just informational
+                    pass
                 elif key.startswith("#"):
                     self.view        = key[1:]
                     self.active_peer = key
