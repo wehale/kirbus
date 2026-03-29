@@ -1,5 +1,7 @@
-"""Tic-tac-toe — two player, pure Python."""
+"""Tic-tac-toe — single player vs the machine."""
 from __future__ import annotations
+
+import random
 
 from kirbus.games import BaseGame
 
@@ -10,68 +12,88 @@ _WINS = [
 ]
 
 
+def _ai_move(board: list[str]) -> int:
+    """Simple AI: win > block > center > corner > edge."""
+    # Try to win
+    for a, b, c in _WINS:
+        cells = [board[a], board[b], board[c]]
+        if cells.count("O") == 2 and cells.count(" ") == 1:
+            return [a, b, c][cells.index(" ")]
+    # Block player win
+    for a, b, c in _WINS:
+        cells = [board[a], board[b], board[c]]
+        if cells.count("X") == 2 and cells.count(" ") == 1:
+            return [a, b, c][cells.index(" ")]
+    # Center
+    if board[4] == " ":
+        return 4
+    # Corners
+    corners = [i for i in (0, 2, 6, 8) if board[i] == " "]
+    if corners:
+        return random.choice(corners)
+    # Edges
+    edges = [i for i in (1, 3, 5, 7) if board[i] == " "]
+    if edges:
+        return random.choice(edges)
+    return -1
+
+
 class TicTacToeGame(BaseGame):
     name        = "tictactoe"
-    description = "Tic-tac-toe (2 players)"
-    min_players = 2
-    max_players = 2
+    description = "Tic-tac-toe"
+    min_players = 1
+    max_players = 1
 
     def __init__(self) -> None:
-        self._board:   list[str] = [" "] * 9
-        self._players: list[str] = []
-        self._symbols: dict[str, str] = {}
-        self._turn:    int = 0   # index into _players
-        self._over:    bool = False
+        self._board:  list[str] = [" "] * 9
+        self._player: str = ""
+        self._over:   bool = False
 
     def start(self, players: list[str]) -> str:
-        self._players = players
-        self._symbols = {players[0]: "X", players[1]: "O"}
+        self._player = players[0]
         return (
-            f"Tic-tac-toe: {players[0]} (X) vs {players[1]} (O)\n"
+            "Tic-tac-toe: You (X) vs Machine (O)\n"
             f"{self._render()}\n"
-            f"{players[0]}'s turn — reply with a number 1-9"
+            "Your turn — enter a number 1-9"
         )
 
     def on_message(self, sender: str, text: str) -> list[tuple[str, str]]:
-        current = self._players[self._turn]
-        other   = self._players[1 - self._turn]
-
-        if sender != current:
-            return [(sender, f"It's {current}'s turn, not yours.")]
-
         text = text.strip()
         if text.lower() in ("quit", "q"):
             self._over = True
-            return [(p, "Game abandoned.") for p in self._players]
+            return [(sender, "Game abandoned.")]
 
         if not text.isdigit() or not (1 <= int(text) <= 9):
-            return [(sender, "Reply with a number 1-9.")]
+            return [(sender, "Enter a number 1-9.")]
 
         idx = int(text) - 1
         if self._board[idx] != " ":
             return [(sender, "That square is taken. Choose another.")]
 
-        self._board[idx] = self._symbols[sender]
-        board_str = self._render()
+        # Player move
+        self._board[idx] = "X"
 
-        winner = self._check_winner()
-        if winner:
+        if self._check_winner() == "X":
             self._over = True
-            return [
-                (current, f"{board_str}\nYou win! 🎉"),
-                (other,   f"{board_str}\n{current} wins."),
-            ]
+            return [(sender, f"{self._render()}\nYou win!")]
 
         if " " not in self._board:
             self._over = True
-            return [(p, f"{board_str}\nDraw!") for p in self._players]
+            return [(sender, f"{self._render()}\nDraw!")]
 
-        self._turn = 1 - self._turn
-        next_player = self._players[self._turn]
-        return [
-            (current,     f"{board_str}\nGood move. {next_player}'s turn."),
-            (next_player, f"{board_str}\nYour turn ({self._symbols[next_player]})."),
-        ]
+        # AI move
+        ai = _ai_move(self._board)
+        self._board[ai] = "O"
+
+        if self._check_winner() == "O":
+            self._over = True
+            return [(sender, f"{self._render()}\nMachine wins!")]
+
+        if " " not in self._board:
+            self._over = True
+            return [(sender, f"{self._render()}\nDraw!")]
+
+        return [(sender, f"{self._render()}\nYour turn (X) — enter 1-9")]
 
     @property
     def is_over(self) -> bool:
