@@ -250,8 +250,8 @@ class TradeWarsGame(BaseGame):
                 "50 cargo holds, and 5,000 credits.\n"
                 "Trade commodities between ports to build your fortune.\n"
                 "You have 500 turns. Use them wisely.\n\n"
-                "Commands: move <sector#>, port, status, map, scan,\n"
-                "          shipyard, save, quit\n\n"
+                "Commands: move <#>, buy/sell <item>, port, scan,\n"
+                "          map, status, shipyard, save, quit\n\n"
                 + self._sector_display()
             )
 
@@ -290,6 +290,8 @@ class TradeWarsGame(BaseGame):
             return (
                 "Commands:\n"
                 "  move <sector#>  — warp to an adjacent sector\n"
+                "  buy <item> [qty] — buy from port (ore, organics, equipment)\n"
+                "  sell <item> [qty]— sell to port\n"
                 "  port             — enter the port to trade\n"
                 "  scan             — scan adjacent sectors for ports\n"
                 "  map              — show visited sectors\n"
