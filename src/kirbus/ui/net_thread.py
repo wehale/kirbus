@@ -250,9 +250,8 @@ def net_thread(ui, args, stop: threading.Event) -> None:
                 from kirbus.net.connection import Connection
                 session, ph, pe = await do_handshake(r, w, identity)
                 conn = Connection(r, w, session, ph, identity, pe)
-            except Exception as exc:
-                ui.inbox.put(("system_event",
-                    f"could not reach {peer_handle}: {exc}"))
+            except Exception:
+                # Peer not reachable — silently skip
                 async with _connected_lock:
                     _connected.discard(peer_handle)
                 return
