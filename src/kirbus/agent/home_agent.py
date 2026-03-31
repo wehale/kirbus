@@ -41,8 +41,10 @@ class Device:
     state: dict = field(default_factory=dict)
 
     def default_state(self) -> None:
-        if self.type == "baby_monitor":
-            self.state = {"playing": False, "cry_detected": False, "last_detection": None}
+        if self.type == "baby_cry":
+            self.state = {"playing": False}
+        elif self.type == "baby_monitor":
+            self.state = {"cry_detected": False, "last_detection": None}
         elif self.type == "light":
             self.state = {"on": False, "brightness": 100}
         elif self.type == "thermostat":
@@ -57,7 +59,8 @@ class Device:
 
 # The house
 DEVICES = [
-    Device("baby_monitor",  "Baby Monitor",      "baby_monitor", endpoint=0),
+    Device("baby_cry",      "Baby Cry",           "baby_cry",     endpoint=0),
+    Device("baby_monitor",  "Baby Monitor",        "baby_monitor", endpoint=0),
     Device("living_light",  "Living Room Light",  "light",        endpoint=2),
     Device("kitchen_light", "Kitchen Light",      "light",        endpoint=3),
     Device("bedroom_light", "Bedroom Light",      "light",        endpoint=4),
@@ -76,7 +79,9 @@ class MatterBackend:
 
     def send_command(self, device: Device, command: str, args: dict) -> str:
         """Send a command to a device. Returns status message."""
-        if device.type == "baby_monitor":
+        if device.type == "baby_cry":
+            return self._handle_baby_cry(device, command, args)
+        elif device.type == "baby_monitor":
             return self._handle_baby_monitor(device, command, args)
         elif device.type == "light":
             return self._handle_light(device, command, args)
@@ -90,19 +95,18 @@ class MatterBackend:
             return self._handle_switch(device, command, args)
         return "Unknown device type."
 
-    def _handle_baby_monitor(self, dev: Device, cmd: str, args: dict) -> str:
+    def _handle_baby_cry(self, dev: Device, cmd: str, args: dict) -> str:
         if cmd == "play":
             if not Path(BABYCRY_FILE).exists():
                 return f"Audio file not found: {BABYCRY_FILE}"
             dev.state["playing"] = True
-            dev.state["cry_detected"] = False
             try:
                 subprocess.Popen(
                     ["aplay", "-D", AUDIO_DEVICE, BABYCRY_FILE],
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
                 )
-                return "Playing baby cry audio... listening for detection."
+                return "Playing baby cry audio..."
             except Exception as e:
                 dev.state["playing"] = False
                 return f"Failed to play audio: {e}"
@@ -113,14 +117,19 @@ class MatterBackend:
             return "Stopped audio playback."
         elif cmd == "status":
             playing = "PLAYING" if dev.state["playing"] else "idle"
+            return f"Baby Cry: {playing}"
+        return f"Unknown command: {cmd}. Try: play, stop, status"
+
+    def _handle_baby_monitor(self, dev: Device, cmd: str, args: dict) -> str:
+        if cmd == "status":
             detected = "YES" if dev.state["cry_detected"] else "no"
             last = dev.state["last_detection"] or "never"
             return (
-                f"Baby Monitor: {playing}\n"
+                f"Baby Monitor: listening\n"
                 f"  Cry detected: {detected}\n"
                 f"  Last detection: {last}"
             )
-        return f"Unknown command: {cmd}. Try: play, stop, status"
+        return f"Unknown command: {cmd}. Try: status"
 
     def _handle_light(self, dev: Device, cmd: str, args: dict) -> str:
         if cmd == "on":
@@ -263,15 +272,19 @@ class HomeAgent(MenuAgent):
 
     def _device_prompt(self, dev: Device) -> str:
         lines = [f"=== {dev.name} ===", ""]
-        if dev.type == "baby_monitor":
+        if dev.type == "baby_cry":
             playing = "PLAYING" if dev.state["playing"] else "idle"
+            lines.append(f"Status: {playing}")
+            lines.append("")
+            lines.append("Commands: play, stop, status")
+        elif dev.type == "baby_monitor":
             detected = "YES" if dev.state["cry_detected"] else "no"
             last = dev.state["last_detection"] or "never"
-            lines.append(f"Status: {playing}")
+            lines.append("Status: listening")
             lines.append(f"Cry detected: {detected}")
             lines.append(f"Last detection: {last}")
             lines.append("")
-            lines.append("Commands: play, stop, status")
+            lines.append("Waiting for baby cry detection from E84...")
         elif dev.type == "light":
             on = "ON" if dev.state["on"] else "OFF"
             lines.append(f"Status: {on}, brightness {dev.state['brightness']}%")
