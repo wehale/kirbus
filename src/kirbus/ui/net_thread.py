@@ -465,6 +465,41 @@ def net_thread(ui, args, stop: threading.Event) -> None:
 
         poll_task = _spawn(_poll_loop(), name="peer-poll")
 
+        # Poll for device event notifications (long-poll, used for baby cry alerts etc.)
+        async def _notification_poll_loop() -> None:
+            import json as _json
+            import urllib.request
+            _since = 0.0
+            while not stop.is_set():
+                try:
+                    loop = asyncio.get_event_loop()
+                    def _fetch():
+                        req = urllib.request.Request(
+                            f"{server}/agent/notifications?since={_since}")
+                        resp = urllib.request.urlopen(req, timeout=35)
+                        return _json.loads(resp.read().decode())
+                    result = await loop.run_in_executor(None, _fetch)
+                    for n in result.get("notifications", []):
+                        ts = n.get("ts", 0)
+                        if ts > _since:
+                            _since = ts
+                        body = n.get("body", {})
+                        event = body.get("event", "")
+                        state = body.get("state", False)
+                        conf = body.get("confidence", 0.0)
+                        if event == "baby_cry":
+                            if state:
+                                msg = f"🚨 BABY CRY DETECTED (confidence {conf:.2f})"
+                            else:
+                                msg = f"✅ Baby cry ended (confidence {conf:.2f})"
+                            # Show as a system event in the TUI
+                            ui.inbox.put(("my-house", msg))
+                except Exception as e:
+                    _log.debug("notification poll error: %s", e)
+                    await asyncio.sleep(5)
+
+        _spawn(_notification_poll_loop(), name="notification-poll")
+
         nonlocal _disconnect_event
         _disconnect_event = asyncio.Event()
 

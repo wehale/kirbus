@@ -466,9 +466,18 @@ class DrawMixin:
         peer_display = SCRATCH_LABEL if self.active_peer == SCRATCH_PEER else self.active_peer
         prefix       = f"→ {peer_display}: " if self.active_peer else "> "
         buf_str      = "".join(self.input_buf)
+
+        # Mask password in /connect <server> <password>
+        display_str = buf_str
+        if buf_str.lstrip().startswith("/connect "):
+            parts = buf_str.split(None, 2)
+            if len(parts) == 3:
+                # Replace password (3rd part) with dots
+                display_str = parts[0] + " " + parts[1] + " " + "•" * len(parts[2])
+
         visible_w    = inner_w - len(prefix)
         view_start   = max(0, self.cursor - visible_w + 1)
-        visible      = buf_str[view_start: view_start + visible_w]
+        visible      = display_str[view_start: view_start + visible_w]
         self._safe_addstr(self.iw, 1, 2, prefix + visible, self.theme.input)
         cursor_x = 2 + len(prefix) + (self.cursor - view_start)
         try:

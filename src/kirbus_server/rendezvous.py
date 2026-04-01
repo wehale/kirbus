@@ -43,6 +43,12 @@ _agent_menus: dict[str, dict] = {}
 # Agent message handlers: agent_handle → callable(sender, text) → list of {to, text}
 _agent_handlers: dict[str, Any] = {}
 
+# Notification queue for push events (device events, alerts, etc.)
+# List of dicts: {"text": str, "ts": float}
+import asyncio as _asyncio
+_notification_queue: list[dict] = []
+_notification_waiters: list[_asyncio.Event] = []
+
 # Metrics
 _metrics = {
     "total_connections": 0,
@@ -312,10 +318,52 @@ async def handle_device_event(request: web.Request) -> web.Response:
     try:
         result = handler(body)
         _log.info("device event: %s state=%s → %s", event, body.get("state"), result)
+        # Push notification to waiting clients
+        _push_notification(body, result)
         return web.json_response({"ok": True, "result": result})
     except Exception as e:
         _log.error("device event handler error: %s", e)
         return web.json_response({"error": str(e)}, status=500)
+
+
+def _push_notification(body: dict, result: str) -> None:
+    """Add a notification and wake all long-poll waiters."""
+    entry = {"body": body, "result": result, "ts": time.time()}
+    _notification_queue.append(entry)
+    # Keep last 100 notifications
+    if len(_notification_queue) > 100:
+        _notification_queue[:] = _notification_queue[-100:]
+    # Wake all waiting clients
+    for evt in _notification_waiters:
+        evt.set()
+
+
+async def handle_notifications(request: web.Request) -> web.Response:
+    """Long-poll for device event notifications.
+
+    GET /agent/notifications?since=<timestamp>
+    Returns queued notifications since the given timestamp.
+    Blocks up to 30s if none are available yet.
+    """
+    since = float(request.query.get("since", "0"))
+
+    # Check for already-queued notifications
+    pending = [n for n in _notification_queue if n["ts"] > since]
+    if pending:
+        return web.json_response({"notifications": pending})
+
+    # Long-poll: wait up to 30s for a new notification
+    evt = _asyncio.Event()
+    _notification_waiters.append(evt)
+    try:
+        try:
+            await _asyncio.wait_for(evt.wait(), timeout=30.0)
+        except _asyncio.TimeoutError:
+            pass
+        pending = [n for n in _notification_queue if n["ts"] > since]
+        return web.json_response({"notifications": pending})
+    finally:
+        _notification_waiters.remove(evt)
 
 
 async def handle_info(request: web.Request) -> web.Response:
@@ -358,4 +406,5 @@ def make_app(
     app.router.add_post("/agent-menu",       handle_agent_menu)
     app.router.add_post("/agent/send",       handle_agent_send)
     app.router.add_post("/device/event",      handle_device_event)
+    app.router.add_get( "/agent/notifications", handle_notifications)
     return app
