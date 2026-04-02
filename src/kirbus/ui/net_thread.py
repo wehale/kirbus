@@ -469,20 +469,21 @@ def net_thread(ui, args, stop: threading.Event) -> None:
         async def _notification_poll_loop() -> None:
             import json as _json
             import urllib.request
-            _since = 0.0
+            _since = [0.0]  # mutable container for closure
+            _log.info("notification poll started → %s/agent/notifications", server)
             while not stop.is_set():
                 try:
                     loop = asyncio.get_event_loop()
                     def _fetch():
                         req = urllib.request.Request(
-                            f"{server}/agent/notifications?since={_since}")
+                            f"{server}/agent/notifications?since={_since[0]}")
                         resp = urllib.request.urlopen(req, timeout=35)
                         return _json.loads(resp.read().decode())
                     result = await loop.run_in_executor(None, _fetch)
                     for n in result.get("notifications", []):
                         ts = n.get("ts", 0)
-                        if ts > _since:
-                            _since = ts
+                        if ts > _since[0]:
+                            _since[0] = ts
                         body = n.get("body", {})
                         event = body.get("event", "")
                         state = body.get("state", False)
@@ -492,10 +493,9 @@ def net_thread(ui, args, stop: threading.Event) -> None:
                                 msg = f"🚨 BABY CRY DETECTED (confidence {conf:.2f})"
                             else:
                                 msg = f"✅ Baby cry ended (confidence {conf:.2f})"
-                            # Show as a system event in the TUI
-                            ui.inbox.put(("my-house", msg))
+                            ui.inbox.put(("system_event", msg))
                 except Exception as e:
-                    _log.debug("notification poll error: %s", e)
+                    ui.inbox.put(("system_event", f"[notification poll error: {e}]"))
                     await asyncio.sleep(5)
 
         _spawn(_notification_poll_loop(), name="notification-poll")
